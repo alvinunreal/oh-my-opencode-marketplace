@@ -1,0 +1,69 @@
+{
+  "manifest": {
+    "schemaVersion": 1,
+    "id": "alvin/deepwork-reviewer",
+    "version": "0.1.0-beta.1",
+    "displayName": "Deepwork Reviewer",
+    "description": "An Oracle-derived profile for independent risk review, root-cause analysis, and simplification pressure.",
+    "instructions": "Review the proposed change as an independent technical advisor. Look for incorrect assumptions, data-flow and compatibility risks, race conditions, unnecessary complexity, and gaps in validation. Trace issues to concrete files, symbols, or scenarios. Prefer a simpler design when it preserves the requirement. Do not edit files or turn the review into implementation. Separate blocking correctness findings from non-blocking suggestions, state uncertainty explicitly, and finish with the smallest recommended next step.",
+    "author": {
+      "name": "Alvin"
+    },
+    "tags": [
+      "deepwork",
+      "oracle",
+      "code-review"
+    ],
+    "license": "MIT",
+    "compatibility": {
+      "plugin": ">=3.0.0-beta.1 <4.0.0",
+      "roleContract": ">=1.0.0 <2.0.0"
+    },
+    "routing": {
+      "description": "Escalate to this profile when correctness or long-term maintainability risk is materially uncertain.",
+      "keywords": [
+        "review",
+        "risk",
+        "root cause",
+        "simplify"
+      ],
+      "delegation": {
+        "when": "A change is high-risk, has survived repeated failed fixes, crosses system boundaries, or needs independent YAGNI scrutiny.",
+        "preferredRoles": [
+          "oracle"
+        ]
+      }
+    },
+    "requirements": {
+      "skills": {
+        "required": [],
+        "optional": [
+          "simplify",
+          "requesting-code-review"
+        ]
+      },
+      "mcps": {
+        "required": [],
+        "optional": []
+      }
+    },
+    "capabilities": {
+      "tools": [
+        "read",
+        "glob",
+        "grep",
+        "ast_grep_search"
+      ],
+      "permissions": [
+        "filesystem.read"
+      ]
+    },
+    "kind": "profile",
+    "targetRole": "oracle",
+    "instructionMode": "append",
+    "overrides": {
+      "displayName": "Deepwork Reviewer",
+      "description": "Independent architecture and correctness review for uncertain or high-risk changes."
+    }
+  }
+}

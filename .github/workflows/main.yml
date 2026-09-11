@@ -1,0 +1,36 @@
+name: Build registry deployment artifact
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: registry-production
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun test
+      - run: bun run verify-additive
+      - run: bun run build
+      - run: bun run verify-generated
+      - run: bun run validate
+      - uses: actions/upload-artifact@v4
+        with:
+          name: registry-v1
+          path: dist/v1/
+          if-no-files-found: error

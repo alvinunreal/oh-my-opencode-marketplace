@@ -1,0 +1,13 @@
+name = "oh-my-opencode-registry"
+main = "src/worker.ts"
+compatibility_date = "2026-09-11"
+workers_dev = false
+
+routes = [
+  { pattern = "registry.ohmyopencodeslim.com/v1/*", zone_name = "ohmyopencodeslim.com" }
+]
+
+[assets]
+directory = "./dist/v1"
+binding = "ASSETS"
+run_worker_first = true
