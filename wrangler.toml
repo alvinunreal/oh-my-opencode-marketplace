@@ -4,7 +4,7 @@ compatibility_date = "2026-09-11"
 workers_dev = false
 
 routes = [
-  { pattern = "registry.ohmyopencodeslim.com/v1/*", zone_name = "ohmyopencodeslim.com" }
+  { pattern = "registry.ohmyopencodeslim.com", custom_domain = true }
 ]
 
 [assets]
