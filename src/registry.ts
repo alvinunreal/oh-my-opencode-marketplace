@@ -7,6 +7,7 @@ import {
   writeFile,
 } from 'node:fs/promises';
 import { relative, resolve, sep } from 'node:path';
+import { z } from 'zod';
 import {
   canonicalizeRegistryCatalog,
   readRegistryCatalog,
@@ -18,14 +19,15 @@ import {
   canonicalizeMarketplaceBundle,
   canonicalizeMarketplaceRegistryIndex,
   createMarketplaceRegistryEntry,
-  createMarketplaceRegistryEntryV3,
+  digestMarketplaceBundle,
+  MARKETPLACE_DIGEST_DOMAIN_V3,
   MarketplacePackageBundleSchema,
   MarketplacePackageBundleV3Schema,
   MarketplaceRegistryEntrySchema,
   MarketplaceRegistryEntryV3Schema,
   MarketplaceVersionSchema,
+  registryArtifactPath,
   validateMarketplaceRegistryEntry,
-  validateMarketplaceRegistryEntryV3,
   type MarketplacePackageBundle,
   type MarketplaceRegistryEntry,
   type MarketplaceRegistryEntryV3,
@@ -87,6 +89,34 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+const MarketplaceRoutingLinesForRegistrySchema = z
+  .array(z.string().trim().min(1).max(200))
+  .min(1)
+  .max(8)
+  .refine((values) => new Set(values).size === values.length, {
+    message: 'Routing values must be unique',
+  });
+
+const MarketplacePackageBundleV3ForRegistrySchema = MarketplacePackageBundleV3Schema.safeExtend({
+  manifest: MarketplacePackageBundleV3Schema.shape.manifest.safeExtend({
+    routing: MarketplacePackageBundleV3Schema.shape.manifest.shape.routing.safeExtend({
+      delegateWhen: MarketplaceRoutingLinesForRegistrySchema,
+    }),
+  }),
+});
+
+const MarketplaceRegistryEntryV3ForRegistrySchema = MarketplaceRegistryEntryV3Schema.safeExtend({
+  summary: MarketplaceRegistryEntryV3Schema.shape.summary.safeExtend({
+    routing: MarketplaceRegistryEntryV3Schema.shape.summary.shape.routing.safeExtend({
+      delegateWhen: MarketplaceRoutingLinesForRegistrySchema,
+    }),
+  }),
+});
+
+type MarketplacePackageBundleV3ForRegistry = z.infer<
+  typeof MarketplacePackageBundleV3ForRegistrySchema
+>;
+
 async function filesUnder(directory: string): Promise<string[]> {
   const result: string[] = [];
   const entries = await readdir(directory, { withFileTypes: true });
@@ -119,11 +149,60 @@ function parseBundle(value: unknown, path: string): MarketplacePackageBundle {
 }
 
 function parseV3Bundle(value: unknown, path: string): MarketplacePackageBundle {
-  const parsed = MarketplacePackageBundleV3Schema.safeParse(value);
+  const parsed = MarketplacePackageBundleV3ForRegistrySchema.safeParse(value);
   if (!parsed.success) {
     fail(`Invalid marketplace v3 bundle ${path}: ${parsed.error.message}`);
   }
   return parsed.data;
+}
+
+function createMarketplaceRegistryEntryForV3(
+  bundle: MarketplacePackageBundle,
+): MarketplaceRegistryEntryV3 {
+  const parsed = MarketplacePackageBundleV3ForRegistrySchema.parse(bundle);
+  return {
+    id: parsed.manifest.id,
+    version: parsed.manifest.version,
+    artifactPath: registryArtifactPath(parsed.manifest.id, parsed.manifest.version),
+    digest: {
+      algorithm: 'sha256',
+      domain: MARKETPLACE_DIGEST_DOMAIN_V3,
+      value: digestMarketplaceBundle(parsed),
+    },
+    summary: projectMarketplaceManifestSummaryForV3(parsed.manifest),
+  };
+}
+
+function validateMarketplaceRegistryEntryForV3(
+  entry: MarketplaceRegistryEntryV3,
+  bundle: MarketplacePackageBundle,
+): void {
+  const parsed = MarketplacePackageBundleV3ForRegistrySchema.safeParse(bundle);
+  if (!parsed.success) {
+    fail(`Invalid marketplace v3 artifact: ${parsed.error.message}`);
+  }
+  const manifest = parsed.data.manifest;
+  const summary = projectMarketplaceManifestSummaryForV3(manifest);
+  if (
+    manifest.id !== entry.id ||
+    manifest.version !== entry.version ||
+    entry.artifactPath !== registryArtifactPath(entry.id, entry.version)
+  ) {
+    fail('Marketplace v3 artifact identity does not match registry entry');
+  }
+  if (canonicalizeMarketplaceValue(summary) !== canonicalizeMarketplaceValue(entry.summary)) {
+    fail('Marketplace v3 artifact summary does not match registry entry');
+  }
+  if (entry.digest.value !== digestMarketplaceBundle(parsed.data)) {
+    fail('Marketplace v3 artifact digest does not match registry entry');
+  }
+}
+
+function projectMarketplaceManifestSummaryForV3(
+  manifest: MarketplacePackageBundleV3ForRegistry['manifest'],
+): MarketplaceRegistryEntryV3['summary'] {
+  const { prompt: _prompt, ...summary } = manifest;
+  return summary;
 }
 
 function readUint24LE(bytes: Uint8Array, offset: number): number {
@@ -270,7 +349,7 @@ export async function readV3SourceBundles(
   return readSourceBundlesFor(
     packagesRoot,
     parseV3Bundle,
-    createMarketplaceRegistryEntryV3,
+    createMarketplaceRegistryEntryForV3,
   );
 }
 
@@ -395,7 +474,7 @@ function parseRegistryIndexWithoutRetirements(
 
   const entries = value.entries.map((entry, position) => {
     const parsed = (version === 'v3'
-      ? MarketplaceRegistryEntryV3Schema
+      ? MarketplaceRegistryEntryV3ForRegistrySchema
       : MarketplaceRegistryEntrySchema
     ).safeParse(entry);
     if (!parsed.success) {
@@ -734,10 +813,10 @@ async function validateV3Artifacts(
     if (artifactText.trim() !== canonicalizeMarketplaceBundle(artifact)) {
       fail(`V3 registry artifact is not canonical: ${source.entry.artifactPath}`);
     }
-    validateMarketplaceRegistryEntryV3(source.entry, artifact);
+    validateMarketplaceRegistryEntryForV3(source.entry, artifact);
     const entry = indexed.get(source.entry.artifactPath);
     if (!entry) fail(`Missing v3 registry entry ${source.entry.id}@${source.entry.version}`);
-    validateMarketplaceRegistryEntryV3(entry, artifact);
+    validateMarketplaceRegistryEntryForV3(entry, artifact);
   }
 
   for (const source of bundles) {
