@@ -8,6 +8,13 @@ const REGISTRY_HOST = 'registry.ohmyopencodeslim.com';
 const REGISTRY_PREFIXES = ['/v1/', '/v2/'] as const;
 const IMMUTABLE_ARTIFACT = /^\/v[12]\/artifacts\/[a-z0-9][a-z0-9._-]{0,63}\/[a-z0-9][a-z0-9._-]{0,63}\/[0-9A-Za-z.+-]+\.json$/;
 
+function assetRequest(url: URL, request: Request): Request {
+  // The assets directory is dist/, so the version prefix is part of the
+  // asset key. Keep both pathname and search intact: the former selects the
+  // asset and the latter is intentionally available to the assets cache.
+  return new Request(url, request);
+}
+
 function cacheControl(pathname: string): string {
   return IMMUTABLE_ARTIFACT.test(pathname)
     ? 'public, max-age=31536000, immutable'
@@ -24,8 +31,7 @@ export const registryWorker = {
       return new Response('Not found', { status: 404 });
     }
 
-    const assetRequest = new Request(url, request);
-    const response = await env.ASSETS.fetch(assetRequest);
+    const response = await env.ASSETS.fetch(assetRequest(url, request));
     if (!response.ok) return response;
 
     const headers = new Headers(response.headers);

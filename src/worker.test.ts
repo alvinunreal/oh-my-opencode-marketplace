@@ -100,4 +100,44 @@ describe('registry Worker routing', () => {
 
     expect(paths).toEqual(['/v1/index.json', '/v2/index.json']);
   });
+
+  test('preserves the asset path and query string for both versions', async () => {
+    const requests: Array<{ pathname: string; search: string }> = [];
+    const env = {
+      ASSETS: {
+        async fetch(assetRequest: Request) {
+          const assetUrl = new URL(assetRequest.url);
+          requests.push({
+            pathname: assetUrl.pathname,
+            search: assetUrl.search,
+          });
+          return new Response('ok');
+        },
+      },
+    };
+
+    await registryWorker.fetch(
+      new Request(
+        'https://registry.ohmyopencodeslim.com/v1/artifacts/alvin/test/1.0.0.json?cache_bust=one',
+      ),
+      env,
+    );
+    await registryWorker.fetch(
+      new Request(
+        'https://registry.ohmyopencodeslim.com/v2/artifacts/alvin/test/1.0.0.json?cache_bust=two',
+      ),
+      env,
+    );
+
+    expect(requests).toEqual([
+      {
+        pathname: '/v1/artifacts/alvin/test/1.0.0.json',
+        search: '?cache_bust=one',
+      },
+      {
+        pathname: '/v2/artifacts/alvin/test/1.0.0.json',
+        search: '?cache_bust=two',
+      },
+    ]);
+  });
 });
