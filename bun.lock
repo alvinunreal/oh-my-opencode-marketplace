@@ -5,7 +5,7 @@
     "": {
       "name": "oh-my-opencode-marketplace",
       "dependencies": {
-        "oh-my-opencode-slim": "3.0.0-beta.3",
+        "oh-my-opencode-slim": "3.0.0-beta.4",
       },
       "devDependencies": {
         "@types/bun": "1.4.2",
@@ -493,7 +493,7 @@
 
     "node-releases": ["node-releases@2.0.55", "", {}, "sha512-mIrE/Cw9y+9Au6dS5vDKDhQza9YvG6w+ZrS6X+ZzA7yFW/soAeaups4Qzn1bL6g5FVy8WtP79+0j82oPIbqRjQ=="],
 
-    "oh-my-opencode-slim": ["oh-my-opencode-slim@3.0.0-beta.3", "", { "dependencies": { "@ast-grep/cli": "^0.44.1", "@mozilla/readability": "^0.6.0", "@opencode-ai/plugin": "1.18.23", "@opencode-ai/sdk": "1.18.23", "gray-matter": "4.0.3", "jsdom": "^29.0.0", "lru-cache": "^11.5.2", "semver": "^7.7.4", "turndown": "^7.2.4" }, "optionalDependencies": { "@opentui/core": "0.5.8", "@opentui/solid": "0.5.8", "solid-js": "1.9.12" }, "peerDependencies": { "zod": "^4.0.0" }, "bin": { "oh-my-opencode-slim": "dist/cli/index.js" } }, "sha512-tIX4GFnmI+a2lE9eu3ndcz6mXxpVoO28jC2Z8DHY7rnh8H7KUPnsFcEMXHbjUCFtSKqI1GSKLOrlAfm+o+AoCA=="],
+    "oh-my-opencode-slim": ["oh-my-opencode-slim@3.0.0-beta.4", "", { "dependencies": { "@ast-grep/cli": "^0.44.1", "@mozilla/readability": "^0.6.0", "@opencode-ai/plugin": "1.18.23", "@opencode-ai/sdk": "1.18.23", "gray-matter": "4.0.3", "jsdom": "^29.0.0", "lru-cache": "^11.5.2", "semver": "^7.7.4", "turndown": "^7.2.4" }, "optionalDependencies": { "@opentui/core": "0.5.8", "@opentui/solid": "0.5.8", "solid-js": "1.9.12" }, "peerDependencies": { "zod": "^4.0.0" }, "bin": { "oh-my-opencode-slim": "dist/cli/index.js" } }, "sha512-xyJO4Nm1/+FXkjBOiPXnesbmHSWFlHrqPjdscj5Uq97hGwZAYQPijMVZPA7wdt54narZrUOMfliyeHpMEALC3Q=="],
 
     "p-limit": ["p-limit@2.3.0", "", { "dependencies": { "p-try": "^2.0.0" } }, "sha512-//88mFWSJx8lxCzwdAABTJL2MyWB12+eIY7MDL2SqLmAkeKU9qxRvWuSyTjm3FUmpBEMuFfckAIqEaVGUDxb6w=="],
 
