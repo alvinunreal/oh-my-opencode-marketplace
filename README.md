@@ -44,10 +44,19 @@ v2 index and artifacts at the exact paths defined by the contract:
 dist/v2/artifacts/<publisher>/<package>/<version>.json
 ```
 
-The v2 index contains the five migrated agents. The three Deepwork package IDs
-are canonical retirements and are intentionally absent from v2 entries:
-`alvin/deepwork-implementer`, `alvin/deepwork-recon`, and
-`alvin/deepwork-reviewer`.
+`catalog.json` is the registry-owned lifecycle control plane. Every source
+package ID has exactly one entry with one of these states:
+
+- `active`: installable and shown on the website.
+- `retired`: unavailable for new installation and hidden from the website.
+
+Retired package artifacts remain in the immutable source and generated trees,
+but are absent from v2 entries. The plugin's permanent legacy retirements are
+merged at build time; changes to this catalog never require a plugin release.
+
+Use `bun run catalog:list` to inspect states or
+`bun run catalog:set -- <package-id> <active|retired>` to update one before
+running the normal build and validation commands.
 
 Remote installation and web-displayed package references should use an exact
 version, for example `alvin/codebase-janitor@0.1.0-beta.1`.
@@ -67,14 +76,15 @@ bun test
 bun run typecheck
 ```
 
-`build` regenerates only `dist/v2/` deterministically from `packages/v2/`;
-`dist/v1/` is never removed or rewritten. `validate` checks v2 source identity,
-canonical index and retirement ordering, complete artifact coverage, digests,
-and stale/deleted/modified artifacts. `verify-additive` walks every available
-parent-to-child edge in complete Git history, allowing only new package and
-artifact paths while permitting index updates. `verify-generated` checks both
-versioned trees, including that v1 has not drifted. Shallow or missing history
-fails closed (apart from an empty/bootstrap repository).
+`build` appends missing v2 artifacts and deterministically regenerates the v2
+index; it never rewrites existing artifacts. `dist/v1/` is never removed or
+rewritten. `validate` checks v2 source identity, canonical index and retirement
+ordering, complete artifact coverage, digests, and stale/deleted/modified
+artifacts. `verify-additive` walks every available parent-to-child edge in
+complete Git history, allowing only new package and artifact paths while
+permitting index updates. `verify-generated` checks both versioned trees,
+including that v1 has not drifted. Shallow or missing history fails closed
+(apart from an empty/bootstrap repository).
 
 ## Deployment
 

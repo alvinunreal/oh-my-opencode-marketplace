@@ -11,6 +11,8 @@
   "scripts": {
     "validate": "bun run src/cli.ts validate",
     "build": "bun run src/cli.ts build",
+    "catalog:list": "bun run src/cli.ts catalog:list",
+    "catalog:set": "bun run src/cli.ts catalog:set",
     "verify-additive": "bun run src/cli.ts verify-additive",
     "verify-generated": "bun run src/cli.ts verify-generated",
     "verify-main": "bun run src/cli.ts verify-main",

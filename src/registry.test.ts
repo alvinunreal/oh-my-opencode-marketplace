@@ -66,6 +66,19 @@ async function rootWithBundles(
   for (const [id, version] of values) {
     await writeBundle(root, id, version);
   }
+  await writeFile(
+    resolve(root, 'catalog.json'),
+    `${JSON.stringify(
+      {
+        schemaVersion: 1,
+        agents: [...new Set(values.map(([id]) => id))]
+          .sort()
+          .map((id) => ({ id, state: 'active' })),
+      },
+      null,
+      2,
+    )}\n`,
+  );
   return root;
 }
 
@@ -165,6 +178,50 @@ describe('registry build and validation', () => {
       .toContain('alvin/test-package');
   });
 
+  test('retires packages without deleting their immutable artifacts', async () => {
+    const root = await rootWithBundles([
+      ['alvin/evidence-scout', '1.0.0'],
+      ['alvin/visual-inspector', '1.0.0'],
+      ['alvin/active-package', '1.0.0'],
+    ]);
+    await writeFile(
+      resolve(root, 'catalog.json'),
+      `${JSON.stringify(
+        {
+          schemaVersion: 1,
+          agents: [
+            { id: 'alvin/active-package', state: 'active' },
+            { id: 'alvin/evidence-scout', state: 'retired' },
+            { id: 'alvin/visual-inspector', state: 'retired' },
+          ],
+        },
+        null,
+        2,
+      )}\n`,
+    );
+
+    const index = await buildRegistry(root);
+
+    expect(index.entries.map((entry) => entry.id)).toEqual(['alvin/active-package']);
+    expect(index.retirements.map(({ id }) => id)).toEqual([
+      'alvin/deepwork-implementer',
+      'alvin/deepwork-recon',
+      'alvin/deepwork-reviewer',
+      'alvin/evidence-scout',
+      'alvin/visual-inspector',
+    ]);
+    await expect(
+      readFile(
+        resolve(
+          registryPaths(root).output,
+          'artifacts/alvin/evidence-scout/1.0.0.json',
+        ),
+        'utf8',
+      ),
+    ).resolves.toContain('alvin/evidence-scout');
+    await expect(validateRegistry(root)).resolves.toEqual(index);
+  });
+
   test('rejects identity mismatch and noncanonical version paths', async () => {
     const mismatchRoot = await rootWithBundles();
     await writeBundle(mismatchRoot, 'alvin/test-package', '1.0.0', bundle('alvin/other'));
@@ -247,14 +304,18 @@ describe('registry build and validation', () => {
     await writeFile(artifact, JSON.stringify(modified), 'utf8');
     await expect(validateRegistry(root)).rejects.toThrow(/digest/);
 
-    await buildRegistry(root);
-    await mkdir(resolve(output, 'artifacts/alvin/test-package'), { recursive: true });
+    await expect(buildRegistry(root)).rejects.toThrow(/immutable source bundle/);
+
+    const staleRoot = await rootWithBundles();
+    await buildRegistry(staleRoot);
+    const staleOutput = registryPaths(staleRoot).output;
+    await mkdir(resolve(staleOutput, 'artifacts/alvin/test-package'), { recursive: true });
     await writeFile(
-      resolve(output, 'artifacts/alvin/test-package/9.9.9.json'),
+      resolve(staleOutput, 'artifacts/alvin/test-package/9.9.9.json'),
       '{}',
       'utf8',
     );
-    await expect(validateRegistry(root)).rejects.toThrow(/stale, deleted/);
+    await expect(validateRegistry(staleRoot)).rejects.toThrow(/stale, deleted/);
   });
 
   test('allows only new published versions in immutable Git history', async () => {
