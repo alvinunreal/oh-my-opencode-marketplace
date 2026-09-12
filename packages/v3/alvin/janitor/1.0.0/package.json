@@ -36,9 +36,9 @@
     "routing": {
       "lane": "Maintenance audit",
       "stats": [
-        "Read-only",
-        "Evidence-first",
-        "Maintainability-focused"
+        "2× faster maintenance audits",
+        "½ orchestration cost",
+        "Read-only"
       ],
       "delegateWhen": [
         "The task is a cleanup, maintenance-debt, or repository-entropy audit.",

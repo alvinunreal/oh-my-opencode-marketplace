@@ -38,9 +38,9 @@
     "routing": {
       "lane": "Documentation structure and maintenance",
       "stats": [
-        "Docs-only edits",
-        "Source-grounded",
-        "Structure-minded"
+        "3× faster documentation architecture",
+        "½ orchestration cost",
+        "Docs-only edits"
       ],
       "delegateWhen": [
         "The task involves docs-directory restructuring, documentation drift, or changed documented behavior.",

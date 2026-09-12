@@ -36,9 +36,9 @@
     "routing": {
       "lane": "Security architecture and code review",
       "stats": [
-        "Read-only",
-        "Risk-based",
-        "Trust-boundary focused"
+        "5× stronger security/risk review",
+        "Same orchestration cost",
+        "Read-only"
       ],
       "delegateWhen": [
         "Discovered auth, permissions, sessions, secrets, uploads/downloads, external requests, command execution, payments, sensitive state, or untrusted data.",
