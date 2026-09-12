@@ -32,6 +32,27 @@ fetch_exact() {
   fi
 }
 
+fetch_not_found() {
+  local path="$1"
+  local body="$2"
+  local headers="$3"
+  local status
+
+  status="$(curl --silent --show-error --globoff \
+    --header 'Cache-Control: no-cache' \
+    --dump-header "$headers" \
+    --output "$body" \
+    --write-out '%{http_code}' \
+    --get --data-urlencode "cache_bust=$CACHE_BUST" \
+    "$BASE_URL$path")"
+  if [[ "$status" != '404' ]]; then
+    printf \
+      'Expected HTTP 404 from %s with cache_bust=%s, received %s\n' \
+      "$BASE_URL$path" "$CACHE_BUST" "$status" >&2
+    return 1
+  fi
+}
+
 for version in "${VERSIONS[@]}"; do
   index_body="$TEMP_DIR/$version-index.json"
   index_headers="$TEMP_DIR/$version-index.headers"
@@ -63,3 +84,17 @@ for version in "${VERSIONS[@]}"; do
       "$artifact_headers"
   done < "$artifact_list"
 done
+
+removed_artifact_index=0
+while IFS= read -r removed_artifact; do
+  [[ -n "$removed_artifact" ]] || continue
+  fetch_not_found \
+    "$removed_artifact" \
+    "$TEMP_DIR/removed-$removed_artifact_index.body" \
+    "$TEMP_DIR/removed-$removed_artifact_index.headers"
+  removed_artifact_index=$((removed_artifact_index + 1))
+done <<'EOF'
+/v1/artifacts/alvin/deepwork-implementer/0.1.0-beta.1.json
+/v1/artifacts/alvin/deepwork-recon/0.1.0-beta.1.json
+/v1/artifacts/alvin/deepwork-reviewer/0.1.0-beta.1.json
+EOF

@@ -3,16 +3,15 @@ import {
   mkdir,
   readdir,
   readFile,
+  rm,
   writeFile,
 } from 'node:fs/promises';
 import { relative, resolve, sep } from 'node:path';
 import {
   canonicalizeRegistryCatalog,
   readRegistryCatalog,
-  retiredCatalogIds,
   validateCatalogContainsSourceIds,
   validateCatalogSourceIds,
-  type RegistryCatalog,
 } from './catalog';
 import {
   canonicalizeMarketplaceValue,
@@ -20,13 +19,11 @@ import {
   canonicalizeMarketplaceRegistryIndex,
   createMarketplaceRegistryEntry,
   createMarketplaceRegistryEntryV3,
-  createMarketplaceRegistryIndex,
-  createMarketplaceRegistryIndexV3,
   MarketplacePackageBundleSchema,
   MarketplacePackageBundleV3Schema,
-  MarketplaceRegistryIndexSchema,
+  MarketplaceRegistryEntrySchema,
+  MarketplaceRegistryEntryV3Schema,
   MarketplaceVersionSchema,
-  parseMarketplaceRegistryIndexV3,
   validateMarketplaceRegistryEntry,
   validateMarketplaceRegistryEntryV3,
   type MarketplacePackageBundle,
@@ -34,7 +31,6 @@ import {
   type MarketplaceRegistryEntryV3,
   type MarketplaceRegistryIndex,
   type MarketplaceRegistryIndexV3,
-  type MarketplaceRegistryRetirement,
 } from 'oh-my-opencode-slim/marketplace-contract';
 
 export interface RegistryPaths {
@@ -85,6 +81,10 @@ export function registryPaths(root = process.cwd()): RegistryPaths {
 
 function fail(message: string): never {
   throw new Error(message);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 async function filesUnder(directory: string): Promise<string[]> {
@@ -280,13 +280,18 @@ async function readSourceBundlesFor<E extends { readonly id: string }>(
   try {
     files = await filesUnder(packagesRoot);
   } catch (error) {
+    const code = error instanceof Error && 'code' in error ? error.code : undefined;
+    if (code === 'ENOENT') return [];
     const detail = error instanceof Error ? error.message : String(error);
     fail(`Cannot read source package tree ${packagesRoot}: ${detail}`);
   }
 
   const packageFiles = files.filter((path) => path.endsWith('/package.json'));
   if (packageFiles.length === 0) {
-    fail(`No marketplace bundles found under ${packagesRoot}`);
+    if (files.length > 0) {
+      fail(`Unexpected source file in marketplace package tree: ${files[0]}`);
+    }
+    return [];
   }
 
   const sourceFiles = new Set(packageFiles);
@@ -327,38 +332,80 @@ async function readSourceBundlesFor<E extends { readonly id: string }>(
 
 export function makeRegistryIndex(
   entries: readonly MarketplaceRegistryEntry[],
-  catalog?: RegistryCatalog,
 ): MarketplaceRegistryIndex {
-  const permanentRetirements = createMarketplaceRegistryIndex([]).retirements;
-  const retirements: MarketplaceRegistryRetirement[] = [
-    ...permanentRetirements,
-    ...(catalog
-      ? [...retiredCatalogIds(catalog)].map((id) => ({ id }))
-      : []),
-  ].sort((left, right) => (left.id < right.id ? -1 : left.id > right.id ? 1 : 0));
-  const retiredIds = new Set(retirements.map(({ id }) => id));
-  return createMarketplaceRegistryIndex(
-    entries.filter((entry) => !retiredIds.has(entry.id)),
-    retirements,
-  );
+  return {
+    schemaVersion: 3,
+    entries: sortRegistryEntries(entries),
+    retirements: [],
+  };
 }
 
 export function makeRegistryIndexV3(
   entries: readonly MarketplaceRegistryEntryV3[],
-  catalog?: RegistryCatalog,
 ): MarketplaceRegistryIndexV3 {
-  const permanentRetirements = createMarketplaceRegistryIndexV3([]).retirements;
-  const retirements: MarketplaceRegistryRetirement[] = [
-    ...permanentRetirements,
-    ...(catalog
-      ? [...retiredCatalogIds(catalog)].map((id) => ({ id }))
-      : []),
-  ].sort((left, right) => (left.id < right.id ? -1 : left.id > right.id ? 1 : 0));
-  const retiredIds = new Set(retirements.map(({ id }) => id));
-  return createMarketplaceRegistryIndexV3(
-    entries.filter((entry) => !retiredIds.has(entry.id)),
-    retirements,
-  );
+  return {
+    schemaVersion: 3,
+    entries: sortRegistryEntries(entries),
+    retirements: [],
+  };
+}
+
+function sortRegistryEntries<E extends { readonly id: string; readonly version: string }>(
+  entries: readonly E[],
+): E[] {
+  const sorted = [...entries].sort(compareRegistryEntries);
+  for (let position = 1; position < sorted.length; position += 1) {
+    const previous = sorted[position - 1];
+    const current = sorted[position];
+    if (previous.id === current.id && previous.version === current.version) {
+      fail(`Duplicate marketplace bundle ${current.id}@${current.version}`);
+    }
+  }
+  return sorted;
+}
+
+function compareRegistryEntries(
+  left: { readonly id: string; readonly version: string },
+  right: { readonly id: string; readonly version: string },
+): number {
+  if (left.id !== right.id) return left.id < right.id ? -1 : 1;
+  if (left.version !== right.version) return left.version < right.version ? -1 : 1;
+  return 0;
+}
+
+function parseRegistryIndexWithoutRetirements(
+  value: unknown,
+  path: string,
+  version: 'v2' | 'v3',
+): MarketplaceRegistryIndex | MarketplaceRegistryIndexV3 {
+  if (
+    !isRecord(value) ||
+    value.schemaVersion !== 3 ||
+    !Array.isArray(value.entries) ||
+    !Array.isArray(value.retirements)
+  ) {
+    fail(`Invalid marketplace ${version} registry index: ${path}`);
+  }
+  if (value.retirements.length !== 0) {
+    fail(`Marketplace ${version} registry index must not contain retirements: ${path}`);
+  }
+
+  const entries = value.entries.map((entry, position) => {
+    const parsed = (version === 'v3'
+      ? MarketplaceRegistryEntryV3Schema
+      : MarketplaceRegistryEntrySchema
+    ).safeParse(entry);
+    if (!parsed.success) {
+      fail(`Invalid marketplace ${version} registry entry ${position}: ${parsed.error.message}`);
+    }
+    return parsed.data;
+  });
+
+  return {
+    schemaVersion: 3,
+    entries,
+    retirements: [],
+  } as MarketplaceRegistryIndex | MarketplaceRegistryIndexV3;
 }
 
 async function writeCanonicalJson(path: string, value: string): Promise<void> {
@@ -403,6 +450,25 @@ async function writeImmutableBinaryArtifact(
   }
 }
 
+async function removeStaleArtifacts(
+  output: string,
+  expectedArtifacts: ReadonlySet<string>,
+): Promise<void> {
+  let artifactFiles: string[];
+  try {
+    artifactFiles = await filesUnder(resolve(output, 'artifacts'));
+  } catch (error) {
+    const code = error instanceof Error && 'code' in error ? error.code : undefined;
+    if (code === 'ENOENT') return;
+    throw error;
+  }
+
+  for (const artifactFile of artifactFiles) {
+    const artifactPath = relative(output, artifactFile).split(sep).join('/');
+    if (!expectedArtifacts.has(artifactPath)) await rm(artifactFile);
+  }
+}
+
 function avatarArtifactPath(artifactPath: string): string {
   return artifactPath.replace(/\.json$/, '.webp');
 }
@@ -412,22 +478,26 @@ export async function buildRegistry(root = process.cwd()): Promise<MarketplaceRe
   const bundles = await readSourceBundles(paths.v2Packages);
   const catalog = await readRegistryCatalog(paths.catalog);
   validateCatalogContainsSourceIds(catalog, bundles.map((bundle) => bundle.entry.id));
-  const index = makeRegistryIndex(bundles.map((bundle) => bundle.entry), catalog);
+  const index = makeRegistryIndex(bundles.map((bundle) => bundle.entry));
 
   await mkdir(paths.output, { recursive: true });
+  const expectedArtifacts = new Set<string>();
   for (const source of bundles) {
     const artifactPath = resolve(paths.output, source.entry.artifactPath);
+    expectedArtifacts.add(source.entry.artifactPath);
     await writeImmutableArtifact(
       artifactPath,
       canonicalizeMarketplaceBundle(source.bundle),
     );
     if (source.avatarPath) {
+      expectedArtifacts.add(avatarArtifactPath(source.entry.artifactPath));
       await writeImmutableBinaryArtifact(
         resolve(paths.output, avatarArtifactPath(source.entry.artifactPath)),
         await readFile(source.avatarPath),
       );
     }
   }
+  await removeStaleArtifacts(paths.output, expectedArtifacts);
   await writeCanonicalJson(
     resolve(paths.output, 'index.json'),
     canonicalizeMarketplaceRegistryIndex(index),
@@ -447,17 +517,20 @@ export async function buildV3Registry(
   const bundles = await readV3SourceBundles(paths.v3Packages);
   const catalog = await readRegistryCatalog(paths.catalog);
   validateCatalogContainsSourceIds(catalog, bundles.map((bundle) => bundle.entry.id));
-  const index = makeRegistryIndexV3(bundles.map((bundle) => bundle.entry), catalog);
+  const index = makeRegistryIndexV3(bundles.map((bundle) => bundle.entry));
 
   await mkdir(paths.v3Output, { recursive: true });
+  const expectedArtifacts = new Set<string>();
   for (const source of bundles) {
     const artifactPath = resolve(paths.v3Output, source.entry.artifactPath);
+    expectedArtifacts.add(source.entry.artifactPath);
     await writeImmutableArtifact(
       artifactPath,
       canonicalizeMarketplaceBundle(source.bundle),
       'v3',
     );
     if (source.avatarPath) {
+      expectedArtifacts.add(avatarArtifactPath(source.entry.artifactPath));
       await writeImmutableBinaryArtifact(
         resolve(paths.v3Output, avatarArtifactPath(source.entry.artifactPath)),
         await readFile(source.avatarPath),
@@ -465,6 +538,7 @@ export async function buildV3Registry(
       );
     }
   }
+  await removeStaleArtifacts(paths.v3Output, expectedArtifacts);
   await writeCanonicalJson(
     resolve(paths.v3Output, 'index.json'),
     canonicalizeMarketplaceValue(index),
@@ -499,15 +573,12 @@ async function validateArtifacts(
   bundles: readonly SourceBundle[],
   index: MarketplaceRegistryIndex,
 ): Promise<void> {
-  const retiredIds = new Set(index.retirements.map((retirement) => retirement.id));
   for (const entry of index.entries) {
-    if (retiredIds.has(entry.id)) {
-      fail(`Retired package is present in v2 entries: ${entry.id}`);
-    }
+    const source = bundles.find((bundle) => bundle.entry.artifactPath === entry.artifactPath);
+    if (!source) fail(`Unexpected v2 registry entry: ${entry.id}@${entry.version}`);
   }
-  const activeBundles = bundles.filter((bundle) => !retiredIds.has(bundle.entry.id));
   const expectedEntries = new Map(
-    activeBundles.map((bundle) => [bundle.entry.artifactPath, bundle]),
+    bundles.map((bundle) => [bundle.entry.artifactPath, bundle]),
   );
   const expectedArtifacts = new Map<string, SourceBundle>();
   for (const source of bundles) {
@@ -528,8 +599,14 @@ async function validateArtifacts(
   try {
     artifactFiles = await filesUnder(resolve(paths.output, 'artifacts'));
   } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    fail(`Cannot read v2 registry artifacts: ${detail}`);
+    const code = error instanceof Error && 'code' in error ? error.code : undefined;
+    if (code === 'ENOENT') artifactFiles = [];
+    else
+      fail(
+        `Cannot read v2 registry artifacts: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
   }
   const artifactPaths = new Set(
     artifactFiles.map((path) => relative(paths.output, path).split(sep).join('/')),
@@ -549,7 +626,6 @@ async function validateArtifacts(
       fail(`V2 registry artifact is not canonical: ${source.entry.artifactPath}`);
     }
     validateMarketplaceRegistryEntry(source.entry, artifact);
-    if (retiredIds.has(source.entry.id)) continue;
     const entry = indexed.get(source.entry.artifactPath);
     if (!entry) fail(`Missing registry entry ${source.entry.id}@${source.entry.version}`);
     validateMarketplaceRegistryEntry(entry, artifact);
@@ -576,13 +652,17 @@ export async function validateRegistry(root = process.cwd()): Promise<Marketplac
   const catalog = await readRegistryCatalog(paths.catalog);
   validateCatalogContainsSourceIds(catalog, bundles.map((bundle) => bundle.entry.id));
   const indexPath = resolve(paths.output, 'index.json');
-  const index = MarketplaceRegistryIndexSchema.parse(await readJson(indexPath));
+  const index = parseRegistryIndexWithoutRetirements(
+    await readJson(indexPath),
+    indexPath,
+    'v2',
+  ) as MarketplaceRegistryIndex;
   const canonicalIndex = canonicalizeMarketplaceRegistryIndex(index);
   const indexText = await readFile(indexPath, 'utf8');
   if (indexText.trim() !== canonicalIndex) {
     fail('dist/v2/index.json is not canonical');
   }
-  const expected = makeRegistryIndex(bundles.map((bundle) => bundle.entry), catalog);
+  const expected = makeRegistryIndex(bundles.map((bundle) => bundle.entry));
   if (canonicalIndex !== canonicalizeMarketplaceRegistryIndex(expected)) {
     fail('dist/v2/index.json is stale or has modified registry metadata');
   }
@@ -599,15 +679,12 @@ async function validateV3Artifacts(
   bundles: readonly V3SourceBundle[],
   index: MarketplaceRegistryIndexV3,
 ): Promise<void> {
-  const retiredIds = new Set(index.retirements.map((retirement) => retirement.id));
   for (const entry of index.entries) {
-    if (retiredIds.has(entry.id)) {
-      fail(`Retired package is present in v3 entries: ${entry.id}`);
-    }
+    const source = bundles.find((bundle) => bundle.entry.artifactPath === entry.artifactPath);
+    if (!source) fail(`Unexpected v3 registry entry: ${entry.id}@${entry.version}`);
   }
-  const activeBundles = bundles.filter((bundle) => !retiredIds.has(bundle.entry.id));
   const expectedEntries = new Map(
-    activeBundles.map((bundle) => [bundle.entry.artifactPath, bundle]),
+    bundles.map((bundle) => [bundle.entry.artifactPath, bundle]),
   );
   const expectedArtifacts = new Map<string, V3SourceBundle>();
   for (const source of bundles) {
@@ -628,8 +705,14 @@ async function validateV3Artifacts(
   try {
     artifactFiles = await filesUnder(resolve(paths.v3Output, 'artifacts'));
   } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    fail(`Cannot read v3 registry artifacts: ${detail}`);
+    const code = error instanceof Error && 'code' in error ? error.code : undefined;
+    if (code === 'ENOENT') artifactFiles = [];
+    else
+      fail(
+        `Cannot read v3 registry artifacts: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
   }
   const artifactPaths = new Set(
     artifactFiles.map((path) => relative(paths.v3Output, path).split(sep).join('/')),
@@ -649,7 +732,6 @@ async function validateV3Artifacts(
       fail(`V3 registry artifact is not canonical: ${source.entry.artifactPath}`);
     }
     validateMarketplaceRegistryEntryV3(source.entry, artifact);
-    if (retiredIds.has(source.entry.id)) continue;
     const entry = indexed.get(source.entry.artifactPath);
     if (!entry) fail(`Missing v3 registry entry ${source.entry.id}@${source.entry.version}`);
     validateMarketplaceRegistryEntryV3(entry, artifact);
@@ -678,13 +760,17 @@ export async function validateV3Registry(
   const catalog = await readRegistryCatalog(paths.catalog);
   validateCatalogContainsSourceIds(catalog, bundles.map((bundle) => bundle.entry.id));
   const indexPath = resolve(paths.v3Output, 'index.json');
-  const index = parseMarketplaceRegistryIndexV3(await readJson(indexPath));
+  const index = parseRegistryIndexWithoutRetirements(
+    await readJson(indexPath),
+    indexPath,
+    'v3',
+  ) as MarketplaceRegistryIndexV3;
   const canonicalIndex = canonicalizeMarketplaceValue(index);
   const indexText = await readFile(indexPath, 'utf8');
   if (indexText.trim() !== canonicalIndex) {
     fail('dist/v3/index.json is not canonical');
   }
-  const expected = makeRegistryIndexV3(bundles.map((bundle) => bundle.entry), catalog);
+  const expected = makeRegistryIndexV3(bundles.map((bundle) => bundle.entry));
   if (canonicalIndex !== canonicalizeMarketplaceValue(expected)) {
     fail('dist/v3/index.json is stale or has modified registry metadata');
   }
@@ -700,86 +786,6 @@ export async function validateAllRegistries(root = process.cwd()): Promise<void>
   await validateAllCatalogSourceIds(root);
   await validateRegistry(root);
   await validateV3Registry(root);
-}
-
-export function verifyAdditiveAgainstGit(
-  baseRef: string | undefined = undefined,
-  root = process.cwd(),
-): void {
-  const head = revision(root, 'HEAD');
-  if (!head) return;
-  ensureCompleteHistory(root, head);
-  const requestedReference = baseRef ?? process.env.REGISTRY_BASE_REF;
-  const reference =
-    requestedReference === undefined || requestedReference === 'HEAD^'
-      ? undefined
-      : revision(root, requestedReference);
-  if (requestedReference !== undefined && !reference) {
-    fail(`Cannot resolve required history reference ${requestedReference}`);
-  }
-  if (reference && !isAncestor(root, reference, head)) {
-    fail(`History reference ${reference} is not an ancestor of ${head}`);
-  }
-
-  const commits = gitOutput(root, ['rev-list', '--parents', '--reverse', head])
-    .split('\n')
-    .filter(Boolean)
-    .map((line) => line.split(' '));
-  for (const [commit, ...parents] of commits) {
-    const edges = parents.length > 0 ? parents : [undefined];
-    for (const parent of edges) {
-      verifyHistoryEdge(root, parent, commit);
-    }
-  }
-}
-
-function verifyHistoryEdge(
-  root: string,
-  parent: string | undefined,
-  commit: string,
-): void {
-  const args = parent
-    ? ['diff', '--name-status', '--no-renames', parent, commit]
-    : ['diff-tree', '--root', '--name-status', '--no-renames', '--no-commit-id', '-r', commit];
-  const diff = gitOutput(root, [
-    ...args,
-    '--',
-    'packages',
-    'dist/v1',
-    'dist/v2',
-    'dist/v3',
-  ]);
-  const violations: string[] = [];
-  for (const line of diff.split('\n').filter(Boolean)) {
-    const [status, path] = line.split('\t');
-    if (!status || !path) continue;
-    if (path === 'dist/v1/index.json') {
-      if (status !== 'A' && status !== 'M') violations.push(`${status} ${path}`);
-    } else if (path.startsWith('dist/v1/artifacts/')) {
-      if (status !== 'A') violations.push(`${status} ${path}`);
-    } else if (path.startsWith('packages/')) {
-      if (status !== 'A') violations.push(`${status} ${path}`);
-    } else if (path.startsWith('dist/v1/')) {
-      violations.push(`${status} ${path}`);
-    } else if (path === 'dist/v2/index.json' || path === 'dist/v2/catalog.json') {
-      if (status !== 'A' && status !== 'M') violations.push(`${status} ${path}`);
-    } else if (path.startsWith('dist/v2/artifacts/')) {
-      if (status !== 'A') violations.push(`${status} ${path}`);
-    } else if (path.startsWith('dist/v2/')) {
-      violations.push(`${status} ${path}`);
-    } else if (path === 'dist/v3/index.json' || path === 'dist/v3/catalog.json') {
-      if (status !== 'A' && status !== 'M') violations.push(`${status} ${path}`);
-    } else if (path.startsWith('dist/v3/artifacts/')) {
-      if (status !== 'A') violations.push(`${status} ${path}`);
-    } else if (path.startsWith('dist/v3/')) {
-      violations.push(`${status} ${path}`);
-    }
-  }
-  if (violations.length > 0) {
-    fail(
-      `Published artifacts are not additive-only between ${parent ?? 'empty tree'} and ${commit}:\n${violations.join('\n')}`,
-    );
-  }
 }
 
 function gitOutput(root: string, args: string[]): string {
@@ -800,44 +806,6 @@ function revision(root: string, ref: string): string | undefined {
     }).trim();
   } catch {
     return undefined;
-  }
-}
-
-function isAncestor(root: string, ancestor: string, descendant: string): boolean {
-  try {
-    execFileSync('git', ['merge-base', '--is-ancestor', ancestor, descendant], {
-      cwd: root,
-      stdio: 'ignore',
-    });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function ensureCompleteHistory(root: string, head: string): void {
-  let shallow: string;
-  try {
-    shallow = execFileSync('git', ['rev-parse', '--is-shallow-repository'], {
-      cwd: root,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim();
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    fail(`Cannot determine Git history completeness: ${detail}`);
-  }
-  if (shallow !== 'false') {
-    fail('Complete Git history is required; repository is shallow or unknown');
-  }
-  for (const line of gitOutput(root, ['rev-list', '--parents', head])
-    .split('\n')
-    .filter(Boolean)) {
-    for (const parent of line.split(' ').slice(1)) {
-      if (!revision(root, parent)) {
-        fail(`Complete Git history is required; missing parent ${parent}`);
-      }
-    }
   }
 }
 
@@ -876,7 +844,6 @@ export function verifyGeneratedOutput(root = process.cwd()): void {
 
 export async function verifyForDeployment(root = process.cwd()): Promise<void> {
   await validateAllRegistries(root);
-  verifyAdditiveAgainstGit(undefined, root);
   verifyGeneratedOutput(root);
   verifyCurrentMain(root);
 }

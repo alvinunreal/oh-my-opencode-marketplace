@@ -26,7 +26,6 @@ jobs:
       - run: bun run typecheck
       - run: bun test
       - run: bun run verify-main
-      - run: bun run verify-additive
       - run: bun run build
       - run: bun run verify-generated
       - run: bun run validate

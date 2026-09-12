@@ -1,18 +1,11 @@
 import {
   buildAllRegistries,
   validateAllRegistries,
-  verifyAdditiveAgainstGit,
   verifyForDeployment,
   verifyCurrentMain,
   verifyGeneratedOutput,
 } from './registry';
-import {
-  CATALOG_STATES,
-  readRegistryCatalog,
-  setCatalogState,
-  writeRegistryCatalog,
-  type CatalogState,
-} from './catalog';
+import { readRegistryCatalog } from './catalog';
 
 const command = process.argv[2];
 
@@ -23,11 +16,6 @@ try {
   } else if (command === 'validate') {
     await validateAllRegistries();
     console.log('Validated v2 and v3 registry artifacts');
-  } else if (command === 'verify-additive') {
-    verifyAdditiveAgainstGit(
-      process.argv[3] === '--' ? process.argv[4] : process.argv[3],
-    );
-    console.log('Published artifacts are additive-only');
   } else if (command === 'verify-generated') {
     verifyGeneratedOutput();
     console.log('Checked-in generated output is unchanged');
@@ -42,19 +30,9 @@ try {
     for (const agent of catalog.agents) {
       console.log(`${agent.id}\t${agent.state}`);
     }
-  } else if (command === 'catalog:set') {
-    const [id, state] = process.argv.slice(3);
-    if (!id || !CATALOG_STATES.includes(state as CatalogState)) {
-      throw new Error(
-        `Usage: bun run src/cli.ts catalog:set <package-id> <${CATALOG_STATES.join('|')}>`,
-      );
-    }
-    const catalog = await readRegistryCatalog('catalog.json');
-    await writeRegistryCatalog('catalog.json', setCatalogState(catalog, id, state as CatalogState));
-    console.log(`Set ${id} to ${state}`);
   } else {
     throw new Error(
-      'Usage: bun run src/cli.ts <build|validate|verify-additive|verify-generated|verify-main|deploy|catalog:list|catalog:set> [args]',
+      'Usage: bun run src/cli.ts <build|validate|verify-generated|verify-main|deploy|catalog:list> [args]',
     );
   }
 } catch (error) {

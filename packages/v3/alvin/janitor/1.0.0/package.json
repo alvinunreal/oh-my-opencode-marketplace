@@ -1,0 +1,53 @@
+{
+  "manifest": {
+    "schemaVersion": 3,
+    "id": "alvin/janitor",
+    "version": "1.0.0",
+    "displayName": "Janitor",
+    "description": "A standalone, read-only maintenance auditor for repository maintainability.",
+    "agentName": "janitor",
+    "prompt": "Act as an experienced maintenance specialist. Investigate why the repository is getting harder to change, identify genuinely worthwhile cleanup, explain practical next steps, use evidence proportionately, state uncertainty, and never edit.",
+    "skills": [],
+    "mcps": [],
+    "tools": [
+      "read",
+      "glob",
+      "grep",
+      "ast_grep_search"
+    ],
+    "author": {
+      "name": "hbollon",
+      "url": "https://github.com/alvinunreal/oh-my-opencode-slim/issues/358"
+    },
+    "tags": [
+      "maintenance",
+      "audit",
+      "read-only",
+      "evidence-first",
+      "maintainability"
+    ],
+    "license": "MIT",
+    "compatibility": {
+      "plugin": ">=3.0.0-beta.11 <4.0.0"
+    },
+    "model": {
+      "source": "session"
+    },
+    "routing": {
+      "lane": "Maintenance audit",
+      "stats": [
+        "Read-only",
+        "Evidence-first",
+        "Maintainability-focused"
+      ],
+      "delegateWhen": [
+        "The task is a cleanup, maintenance-debt, or repository-entropy audit.",
+        "The repository has undergone a major refactor or is approaching a release."
+      ],
+      "avoid": [
+        "Feature implementation or a concrete known bug.",
+        "Cosmetic churn or executing changes."
+      ]
+    }
+  }
+}

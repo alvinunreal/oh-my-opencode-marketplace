@@ -74,22 +74,17 @@ dist/v3/artifacts/<publisher>/<package>/<version>.json
 dist/v3/artifacts/<publisher>/<package>/<version>.webp # when avatar.webp exists
 ```
 
-`catalog.json` is the registry-owned lifecycle control plane. Every source
-package ID has exactly one entry with one of these states:
+`catalog.json` is the registry-owned package list. Every source package ID has
+exactly one active entry and every catalog entry must have a matching source
+package. Removing a package means deleting its source, catalog entry, and
+generated artifacts; the build prunes generated output rather than retaining
+retirement records or tombstones.
 
-- `active`: installable and shown on the website.
-- `retired`: unavailable for new installation and hidden from the website.
-
-Retired package artifacts remain in the immutable source and generated trees,
-but are absent from v2 and v3 entries. The plugin's permanent legacy retirements are
-merged at build time; changes to this catalog never require a plugin release.
-
-Use `bun run catalog:list` to inspect states or
-`bun run catalog:set -- <package-id> <active|retired>` to update one before
-running the normal build and validation commands.
+Use `bun run catalog:list` to inspect the package list before running the normal
+build and validation commands.
 
 Remote installation and web-displayed package references should use an exact
-version, for example `alvin/codebase-janitor@0.1.0-beta.1`.
+version, for example `alvin/janitor@1.0.0`.
 
 ## Local verification
 
@@ -100,21 +95,17 @@ for reproducible local and CI results.
 bun install --frozen-lockfile
 bun run build
 bun run validate
-bun run verify-additive
 bun run verify-generated
 bun test
 bun run typecheck
 ```
 
-`build` appends missing v2 and v3 artifacts and deterministically regenerates
-both indexes; it never rewrites existing artifacts. `dist/v1/` is never removed
-or rewritten. `validate` checks both v2 and v3 source identity, canonical index
-and retirement ordering, complete artifact coverage, digests, and
-stale/deleted/modified artifacts. `verify-additive` walks every available parent-to-child edge in
-complete Git history, allowing only new package and artifact paths while
-permitting index updates. `verify-generated` checks all three versioned trees,
-including that v1 has not drifted. Shallow or missing history fails closed
-(apart from an empty/bootstrap repository).
+`build` regenerates v2 and v3 indexes, writes missing artifacts, and removes
+stale generated artifacts. Existing artifacts are immutable while their source
+package remains published. `dist/v1/` is never generated or rewritten by this
+command. `validate` checks source identity, canonical indexes, complete artifact
+coverage, digests, and stale/deleted/modified artifacts. `verify-generated`
+checks all three versioned trees, including that v1 has not drifted.
 
 ## Deployment
 

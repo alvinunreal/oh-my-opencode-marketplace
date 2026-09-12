@@ -11,7 +11,6 @@ import {
   registryPaths,
   validateRegistry,
   validateV3Registry,
-  verifyAdditiveAgainstGit,
   verifyGeneratedOutput,
 } from './registry';
 import {
@@ -158,6 +157,41 @@ function squareAvatar(): Buffer {
   return Buffer.from('UklGRhwAAABXRUJQVlA4TA8AAAAvAAAAAAcQ/Y/+ByKi/wEA', 'base64');
 }
 
+function git(root: string, args: string[]): string {
+  return execFileSync('git', args, { cwd: root, encoding: 'utf8' });
+}
+
+async function gitFixture(): Promise<string> {
+  const root = await mkdtemp(resolve(tmpdir(), 'marketplace-git-'));
+  temporaryRoots.push(root);
+  git(root, ['init', '--quiet']);
+  for (const version of ['v1', 'v2', 'v3']) {
+    await mkdir(resolve(root, `dist/${version}/artifacts/alvin/test`), {
+      recursive: true,
+    });
+    await writeFile(
+      resolve(root, `dist/${version}/artifacts/alvin/test/1.0.0.json`),
+      '{}',
+    );
+    await writeFile(
+      resolve(root, `dist/${version}/index.json`),
+      '{"entries":[]}\n',
+    );
+  }
+  git(root, ['add', '.']);
+  git(root, [
+    '-c',
+    'user.name=Registry Tests',
+    '-c',
+    'user.email=registry-tests@example.invalid',
+    'commit',
+    '--quiet',
+    '-m',
+    'base',
+  ]);
+  return root;
+}
+
 async function writeAvatar(root: string, id = 'alvin/test-package', version = '1.0.0', value = squareAvatar()): Promise<string> {
   return writeAvatarInRoot(root, 'v2', id, version, value);
 }
@@ -188,53 +222,6 @@ async function writeAvatarInRoot(
   return path;
 }
 
-function git(root: string, args: string[]): string {
-  return execFileSync('git', args, { cwd: root, encoding: 'utf8' });
-}
-
-async function gitFixture(): Promise<{ root: string; base: string }> {
-  const root = await mkdtemp(resolve(tmpdir(), 'marketplace-git-'));
-  temporaryRoots.push(root);
-  git(root, ['init', '--quiet']);
-  await mkdir(resolve(root, 'packages/alvin/test/1.0.0'), { recursive: true });
-  await writeFile(resolve(root, 'packages/alvin/test/1.0.0/package.json'), '{}');
-    await mkdir(resolve(root, 'dist/v1/artifacts/alvin/test'), { recursive: true });
-    await writeFile(resolve(root, 'dist/v1/artifacts/alvin/test/1.0.0.json'), '{}');
-    await writeFile(resolve(root, 'dist/v1/index.json'), '{"entries":[]}\n');
-    await mkdir(resolve(root, 'dist/v2/artifacts/alvin/test'), { recursive: true });
-    await writeFile(resolve(root, 'dist/v2/artifacts/alvin/test/1.0.0.json'), '{}');
-    await writeFile(
-      resolve(root, 'dist/v2/index.json'),
-      '{"schemaVersion":3,"entries":[],"retirements":[]}\n',
-    );
-  git(root, ['add', '.']);
-  git(root, [
-    '-c',
-    'user.name=Registry Tests',
-    '-c',
-    'user.email=registry-tests@example.invalid',
-    'commit',
-    '--quiet',
-    '-m',
-    'base',
-  ]);
-  return { root, base: git(root, ['rev-parse', 'HEAD']).trim() };
-}
-
-function commitFixture(root: string, message: string): void {
-  git(root, ['add', '.']);
-  git(root, [
-    '-c',
-    'user.name=Registry Tests',
-    '-c',
-    'user.email=registry-tests@example.invalid',
-    'commit',
-    '--quiet',
-    '-m',
-    message,
-  ]);
-}
-
 describe('registry build and validation', () => {
   test('leaves the published v1 output byte-identical', async () => {
     const root = await rootWithBundles();
@@ -260,11 +247,7 @@ describe('registry build and validation', () => {
     const validated = await validateRegistry(root);
 
     expect(index.entries).toHaveLength(1);
-    expect(index.retirements.map(({ id }) => id)).toEqual([
-      'alvin/deepwork-implementer',
-      'alvin/deepwork-recon',
-      'alvin/deepwork-reviewer',
-    ]);
+    expect(index.retirements).toEqual([]);
     expect(validated.entries[0]?.artifactPath).toBe(
       'artifacts/alvin/test-package/1.0.0.json',
     );
@@ -279,6 +262,7 @@ describe('registry build and validation', () => {
     const validated = await validateV3Registry(root);
 
     expect(index.entries).toHaveLength(1);
+    expect(index.retirements).toEqual([]);
     expect(validated.entries[0]?.digest.domain).toBe('marketplace-agent-bundle-v3');
     expect(validated.entries[0]?.summary.routing).toEqual({
       lane: 'Contract test lane.',
@@ -356,22 +340,22 @@ describe('registry build and validation', () => {
     await expect(buildRegistry(root)).rejects.toThrow(/immutable source avatar/);
   });
 
-  test('retires packages without deleting their immutable artifacts', async () => {
+  test('removes generated artifacts when their source package is removed', async () => {
     const root = await rootWithBundles([
-      ['alvin/evidence-scout', '1.0.0'],
-      ['alvin/visual-inspector', '1.0.0'],
+      ['alvin/removed-package', '1.0.0'],
       ['alvin/active-package', '1.0.0'],
     ]);
+    await buildRegistry(root);
+
+    await rm(resolve(root, 'packages/v2/alvin/removed-package'), {
+      recursive: true,
+    });
     await writeFile(
       resolve(root, 'catalog.json'),
       `${JSON.stringify(
         {
           schemaVersion: 1,
-          agents: [
-            { id: 'alvin/active-package', state: 'active' },
-            { id: 'alvin/evidence-scout', state: 'retired' },
-            { id: 'alvin/visual-inspector', state: 'retired' },
-          ],
+          agents: [{ id: 'alvin/active-package', state: 'active' }],
         },
         null,
         2,
@@ -381,22 +365,24 @@ describe('registry build and validation', () => {
     const index = await buildRegistry(root);
 
     expect(index.entries.map((entry) => entry.id)).toEqual(['alvin/active-package']);
-    expect(index.retirements.map(({ id }) => id)).toEqual([
-      'alvin/deepwork-implementer',
-      'alvin/deepwork-recon',
-      'alvin/deepwork-reviewer',
-      'alvin/evidence-scout',
-      'alvin/visual-inspector',
-    ]);
     await expect(
       readFile(
         resolve(
           registryPaths(root).output,
-          'artifacts/alvin/evidence-scout/1.0.0.json',
+          'artifacts/alvin/removed-package/1.0.0.json',
         ),
         'utf8',
       ),
-    ).resolves.toContain('alvin/evidence-scout');
+    ).rejects.toThrow();
+    await expect(validateRegistry(root)).resolves.toEqual(index);
+  });
+
+  test('supports an empty v2 source tree after package removal', async () => {
+    const root = await rootWithV3Bundles();
+
+    const index = await buildRegistry(root);
+
+    expect(index.entries).toEqual([]);
     await expect(validateRegistry(root)).resolves.toEqual(index);
   });
 
@@ -496,117 +482,34 @@ describe('registry build and validation', () => {
     await expect(validateRegistry(staleRoot)).rejects.toThrow(/stale, deleted/);
   });
 
-  test('allows only new published versions in immutable Git history', async () => {
-    const fixture = await gitFixture();
-    await mkdir(resolve(fixture.root, 'packages/alvin/test/2.0.0'), { recursive: true });
-    await writeFile(resolve(fixture.root, 'packages/alvin/test/2.0.0/package.json'), '{}');
-    await writeFile(
-      resolve(fixture.root, 'dist/v1/artifacts/alvin/test/2.0.0.json'),
-      '{}',
+  test('removes stale v3 artifacts during a rebuild', async () => {
+    const root = await rootWithV3Bundles();
+    await buildV3Registry(root);
+    const staleArtifact = resolve(
+      registryPaths(root).v3Output,
+      'artifacts/alvin/test-package/9.9.9.json',
     );
-    await writeFile(resolve(fixture.root, 'dist/v1/index.json'), '{"entries":[2]}\n');
-    commitFixture(fixture.root, 'add version');
+    await mkdir(resolve(staleArtifact, '..'), { recursive: true });
+    await writeFile(staleArtifact, '{}', 'utf8');
 
-    expect(() => verifyAdditiveAgainstGit(fixture.base, fixture.root)).not.toThrow();
+    await buildV3Registry(root);
+
+    await expect(readFile(staleArtifact, 'utf8')).rejects.toThrow();
+    await expect(validateV3Registry(root)).resolves.toBeDefined();
   });
 
-  test('checks every history edge instead of trusting the latest diff', async () => {
-    const fixture = await gitFixture();
-    await writeFile(
-      resolve(fixture.root, 'dist/v1/artifacts/alvin/test/1.0.0.json'),
-      'mutated',
-    );
-    commitFixture(fixture.root, 'mutate old version');
-    await writeFile(resolve(fixture.root, 'dist/v1/index.json'), '{"entries":[3]}\n');
-    commitFixture(fixture.root, 'add later catalog change');
+  test('detects modified, missing, and untracked generated output', async () => {
+    const modified = await gitFixture();
+    await writeFile(resolve(modified, 'dist/v1/index.json'), 'changed\n');
+    expect(() => verifyGeneratedOutput(modified)).toThrow(/differs/);
 
-    expect(() => verifyAdditiveAgainstGit(fixture.base, fixture.root)).toThrow(
-      /additive-only/,
-    );
-  });
-
-  test('treats a repository without a prior commit as bootstrap', async () => {
-    const root = await mkdtemp(resolve(tmpdir(), 'marketplace-bootstrap-'));
-    temporaryRoots.push(root);
-    git(root, ['init', '--quiet']);
-    expect(() => verifyAdditiveAgainstGit('HEAD^', root)).not.toThrow();
-  });
-
-  test('fails closed for a depth-1 file clone', async () => {
-    const source = await gitFixture();
-    await writeFile(resolve(source.root, 'dist/v1/index.json'), '{"entries":[4]}\n');
-    commitFixture(source.root, 'second published state');
-
-    const cloneParent = await mkdtemp(resolve(tmpdir(), 'marketplace-clone-'));
-    temporaryRoots.push(cloneParent);
-    const clone = resolve(cloneParent, 'depth-one');
-    git(cloneParent, ['clone', '--quiet', '--depth', '1', `file://${source.root}`, clone]);
-
-    expect(() => verifyAdditiveAgainstGit(undefined, clone)).toThrow(/shallow/);
-  });
-
-  test('rejects artifact modification, deletion, and rename', async () => {
-    for (const change of ['modify', 'delete', 'rename'] as const) {
-      const fixture = await gitFixture();
-      const oldPath = resolve(fixture.root, 'dist/v1/artifacts/alvin/test/1.0.0.json');
-      if (change === 'modify') {
-        await writeFile(oldPath, 'changed');
-      } else if (change === 'delete') {
-        await rm(oldPath);
-      } else {
-        git(fixture.root, [
-          'mv',
-          'dist/v1/artifacts/alvin/test/1.0.0.json',
-          'dist/v1/artifacts/alvin/test/renamed.json',
-        ]);
-      }
-      commitFixture(fixture.root, change);
-      expect(() => verifyAdditiveAgainstGit(fixture.base, fixture.root)).toThrow(
-        /additive-only/,
-      );
-    }
-  });
-
-  test('applies additive history rules to v2 artifacts', async () => {
-    const fixture = await gitFixture();
-    await writeFile(
-      resolve(fixture.root, 'dist/v2/artifacts/alvin/test/1.0.0.json'),
-      'changed',
-    );
-    commitFixture(fixture.root, 'mutate v2 artifact');
-
-    expect(() => verifyAdditiveAgainstGit(fixture.base, fixture.root)).toThrow(
-      /additive-only/,
-    );
-  });
-
-  test('allows mutable registry metadata changes but rejects generated drift', async () => {
-    const fixture = await gitFixture();
-    await writeFile(resolve(fixture.root, 'dist/v1/index.json'), '{"entries":[1]}\n');
-    commitFixture(fixture.root, 'catalog update');
-    expect(() => verifyAdditiveAgainstGit(fixture.base, fixture.root)).not.toThrow();
-
-    await writeFile(
-      resolve(fixture.root, 'dist/v2/catalog.json'),
-      '{"schemaVersion":1,"agents":[]}\n',
-    );
-    commitFixture(fixture.root, 'v2 catalog update');
-    expect(() => verifyAdditiveAgainstGit(fixture.base, fixture.root)).not.toThrow();
-
-    await writeFile(resolve(fixture.root, 'dist/v1/index.json'), '{"entries":[2]}\n');
-    expect(() => verifyGeneratedOutput(fixture.root)).toThrow();
-  });
-
-  test('rejects missing and untracked generated output', async () => {
     const missing = await gitFixture();
-    await rm(resolve(missing.root, 'dist/v1/artifacts/alvin/test/1.0.0.json'));
-    expect(() => verifyGeneratedOutput(missing.root)).toThrow();
+    await rm(resolve(missing, 'dist/v2/index.json'));
+    expect(() => verifyGeneratedOutput(missing)).toThrow(/differs|missing/);
 
     const untracked = await gitFixture();
-    await writeFile(
-      resolve(untracked.root, 'dist/v1/unexpected.json'),
-      '{}',
-    );
-    expect(() => verifyGeneratedOutput(untracked.root)).toThrow(/untracked/);
+    await writeFile(resolve(untracked, 'dist/v3/unexpected.json'), '{}');
+    expect(() => verifyGeneratedOutput(untracked)).toThrow(/untracked/);
   });
+
 });

@@ -46,7 +46,7 @@ describe('registry Worker routing', () => {
   test('serves versioned artifacts as immutable assets', async () => {
     for (const version of ['v1', 'v2', 'v3']) {
       const response = await request(
-        `/${version}/artifacts/alvin/deepwork-recon/0.1.0-beta.1.json`,
+        `/${version}/artifacts/alvin/test/1.0.0.json`,
       );
 
       expect(response.status).toBe(200);
@@ -56,7 +56,7 @@ describe('registry Worker routing', () => {
     }
 
     const avatar = await request(
-      '/v2/artifacts/alvin/codebase-janitor/0.1.0.webp',
+      '/v3/artifacts/alvin/janitor/1.0.0.webp',
     );
     expect(avatar.status).toBe(200);
     expect(avatar.headers.get('Cache-Control')).toBe(
