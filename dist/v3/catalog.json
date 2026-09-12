@@ -2,7 +2,15 @@
   "schemaVersion": 1,
   "agents": [
     {
+      "id": "alvin/documenter",
+      "state": "active"
+    },
+    {
       "id": "alvin/janitor",
+      "state": "active"
+    },
+    {
+      "id": "alvin/paladin",
       "state": "active"
     }
   ]

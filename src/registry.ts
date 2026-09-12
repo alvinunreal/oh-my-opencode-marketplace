@@ -189,20 +189,23 @@ function avatarDimensions(bytes: Uint8Array, path: string): { width: number; hei
       };
       hasImage = true;
     } else if (chunkType === 'VP8 ') {
-      if (
-        chunkSize < 14 ||
-        bytes[dataStart + 6] !== 0x9d ||
-        bytes[dataStart + 7] !== 0x01 ||
-        bytes[dataStart + 8] !== 0x2a
-      ) {
+      const frameHeaderOffset =
+        [3, 6, 7].find(
+          (offset) =>
+            bytes[dataStart + offset] === 0x9d &&
+            bytes[dataStart + offset + 1] === 0x01 &&
+            bytes[dataStart + offset + 2] === 0x2a,
+        );
+      if (chunkSize < 14 || frameHeaderOffset === undefined) {
         fail(`Avatar has an invalid WebP lossy frame: ${path}`);
       }
+      const dimensionOffset = frameHeaderOffset === 3 ? dataStart + 6 : dataStart + 10;
       dimensions ??= {
         width:
-          new DataView(bytes.buffer, bytes.byteOffset + dataStart + 10, 2).getUint16(0, true) &
+          new DataView(bytes.buffer, bytes.byteOffset + dimensionOffset, 2).getUint16(0, true) &
           0x3fff,
         height:
-          new DataView(bytes.buffer, bytes.byteOffset + dataStart + 12, 2).getUint16(0, true) &
+          new DataView(bytes.buffer, bytes.byteOffset + dimensionOffset + 2, 2).getUint16(0, true) &
           0x3fff,
       };
       hasImage = true;

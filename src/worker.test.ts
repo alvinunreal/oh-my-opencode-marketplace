@@ -55,13 +55,15 @@ describe('registry Worker routing', () => {
       );
     }
 
-    const avatar = await request(
-      '/v3/artifacts/alvin/janitor/1.0.0.webp',
-    );
-    expect(avatar.status).toBe(200);
-    expect(avatar.headers.get('Cache-Control')).toBe(
-      'public, max-age=31536000, immutable',
-    );
+    for (const agent of ['documenter', 'janitor', 'paladin']) {
+      const avatar = await request(
+        `/v3/artifacts/alvin/${agent}/1.0.0.webp`,
+      );
+      expect(avatar.status).toBe(200);
+      expect(avatar.headers.get('Cache-Control')).toBe(
+        'public, max-age=31536000, immutable',
+      );
+    }
   });
 
   test('rejects invalid prefixes and hosts without touching assets', async () => {
