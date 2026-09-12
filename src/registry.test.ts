@@ -35,34 +35,25 @@ function bundle(
       version,
       displayName: 'Test package',
       description: 'A test package with a real contract-shaped manifest.',
-      instructions: 'Inspect the request, report evidence, and remain within scope.',
+      schemaVersion: 2,
+      agentName: 'tester',
+      prompt: 'Inspect the request, report evidence, and remain within scope.',
       author: { name: 'Test author' },
       tags: ['test'],
       license: 'MIT',
       compatibility: {
-        plugin: '>=3.0.0-beta.1 <4.0.0',
-        roleContract: '>=1.0.0 <2.0.0',
+        plugin: '>=3.0.0-beta.3 <4.0.0',
       },
       routing: {
         description: 'Use for contract tests.',
+        when: 'A contract test needs a package.',
         keywords: ['test'],
-        delegation: {
-          when: 'A contract test needs a package.',
-          preferredRoles: ['explorer'],
-        },
       },
-      requirements: {
-        skills: { required: [], optional: [] },
-        mcps: { required: [], optional: [] },
-      },
-      capabilities: {
-        tools: ['read'],
-        permissions: ['filesystem.read'],
-      },
-      kind: 'agent',
-      baseRole: 'explorer',
-      agentName: 'tester',
-      overrides: {},
+      skills: [],
+      mcps: [],
+      tools: ['read'],
+      model: { source: 'builtin' },
+      extends: { builtin: 'explorer', promptMode: 'append' },
     },
   });
 }
@@ -85,7 +76,7 @@ async function writeBundle(
   source: unknown = bundle(id, version),
 ): Promise<void> {
   const [publisher, name] = id.split('/');
-  const path = resolve(root, 'packages', publisher, name, version, 'package.json');
+  const path = resolve(root, 'packages', 'v2', publisher, name, version, 'package.json');
   await mkdir(resolve(path, '..'), { recursive: true });
   await writeFile(path, `${JSON.stringify(source, null, 2)}\n`, 'utf8');
 }
@@ -100,9 +91,15 @@ async function gitFixture(): Promise<{ root: string; base: string }> {
   git(root, ['init', '--quiet']);
   await mkdir(resolve(root, 'packages/alvin/test/1.0.0'), { recursive: true });
   await writeFile(resolve(root, 'packages/alvin/test/1.0.0/package.json'), '{}');
-  await mkdir(resolve(root, 'dist/v1/artifacts/alvin/test'), { recursive: true });
-  await writeFile(resolve(root, 'dist/v1/artifacts/alvin/test/1.0.0.json'), '{}');
-  await writeFile(resolve(root, 'dist/v1/index.json'), '{"entries":[]}\n');
+    await mkdir(resolve(root, 'dist/v1/artifacts/alvin/test'), { recursive: true });
+    await writeFile(resolve(root, 'dist/v1/artifacts/alvin/test/1.0.0.json'), '{}');
+    await writeFile(resolve(root, 'dist/v1/index.json'), '{"entries":[]}\n');
+    await mkdir(resolve(root, 'dist/v2/artifacts/alvin/test'), { recursive: true });
+    await writeFile(resolve(root, 'dist/v2/artifacts/alvin/test/1.0.0.json'), '{}');
+    await writeFile(
+      resolve(root, 'dist/v2/index.json'),
+      '{"schemaVersion":3,"entries":[],"retirements":[]}\n',
+    );
   git(root, ['add', '.']);
   git(root, [
     '-c',
@@ -132,6 +129,23 @@ function commitFixture(root: string, message: string): void {
 }
 
 describe('registry build and validation', () => {
+  test('leaves the published v1 output byte-identical', async () => {
+    const root = await rootWithBundles();
+    const v1Index = resolve(root, 'dist/v1/index.json');
+    const v1Artifact = resolve(
+      root,
+      'dist/v1/artifacts/alvin/test-package/1.0.0.json',
+    );
+    await mkdir(resolve(v1Artifact, '..'), { recursive: true });
+    await writeFile(v1Index, 'published-v1-index\n', 'utf8');
+    await writeFile(v1Artifact, 'published-v1-artifact\n', 'utf8');
+
+    await buildRegistry(root);
+
+    expect(await readFile(v1Index, 'utf8')).toBe('published-v1-index\n');
+    expect(await readFile(v1Artifact, 'utf8')).toBe('published-v1-artifact\n');
+  });
+
   test('builds and validates a valid source tree', async () => {
     const root = await rootWithBundles();
 
@@ -139,6 +153,11 @@ describe('registry build and validation', () => {
     const validated = await validateRegistry(root);
 
     expect(index.entries).toHaveLength(1);
+    expect(index.retirements.map(({ id }) => id)).toEqual([
+      'alvin/deepwork-implementer',
+      'alvin/deepwork-recon',
+      'alvin/deepwork-reviewer',
+    ]);
     expect(validated.entries[0]?.artifactPath).toBe(
       'artifacts/alvin/test-package/1.0.0.json',
     );
@@ -166,6 +185,22 @@ describe('registry build and validation', () => {
     expect(() => makeRegistryIndex([entry, entry])).toThrow(/Duplicate/);
     expect(() =>
       MarketplacePackageBundleSchema.parse({ ...bundle(), manifest: { ...bundle().manifest, version: 'v1.0.0' } }),
+    ).toThrow();
+  });
+
+  test('accepts only v2 agent manifests without legacy profile fields', () => {
+    expect(bundle().manifest.schemaVersion).toBe(2);
+    expect(() =>
+      MarketplacePackageBundleSchema.parse({
+        ...bundle(),
+        manifest: { ...bundle().manifest, kind: 'profile' },
+      }),
+    ).toThrow();
+    expect(() =>
+      MarketplacePackageBundleSchema.parse({
+        ...bundle(),
+        manifest: { ...bundle().manifest, capabilities: { tools: ['read'] } },
+      }),
     ).toThrow();
   });
 
@@ -206,9 +241,9 @@ describe('registry build and validation', () => {
 
     await buildRegistry(root);
     const modified = JSON.parse(await readFile(artifact, 'utf8')) as {
-      manifest: { instructions: string };
+      manifest: { prompt: string };
     };
-    modified.manifest.instructions = 'Modified after publication.';
+    modified.manifest.prompt = 'Modified after publication.';
     await writeFile(artifact, JSON.stringify(modified), 'utf8');
     await expect(validateRegistry(root)).rejects.toThrow(/digest/);
 
@@ -291,6 +326,19 @@ describe('registry build and validation', () => {
         /additive-only/,
       );
     }
+  });
+
+  test('applies additive history rules to v2 artifacts', async () => {
+    const fixture = await gitFixture();
+    await writeFile(
+      resolve(fixture.root, 'dist/v2/artifacts/alvin/test/1.0.0.json'),
+      'changed',
+    );
+    commitFixture(fixture.root, 'mutate v2 artifact');
+
+    expect(() => verifyAdditiveAgainstGit(fixture.base, fixture.root)).toThrow(
+      /additive-only/,
+    );
   });
 
   test('allows mutable index-only history changes but rejects generated drift', async () => {

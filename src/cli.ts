@@ -12,7 +12,7 @@ const command = process.argv[2];
 try {
   if (command === 'build') {
     const index = await buildRegistry();
-    console.log(`Built ${index.entries.length} registry artifacts in dist/v1/`);
+    console.log(`Built ${index.entries.length} registry artifacts in dist/v2/`);
   } else if (command === 'validate') {
     const index = await validateRegistry();
     console.log(`Validated ${index.entries.length} registry artifacts`);

@@ -23,7 +23,7 @@ import {
 
 export interface RegistryPaths {
   readonly root: string;
-  readonly packages: string;
+  readonly v2Packages: string;
   readonly output: string;
 }
 
@@ -38,8 +38,8 @@ export function registryPaths(root = process.cwd()): RegistryPaths {
   const absoluteRoot = resolve(root);
   return {
     root: absoluteRoot,
-    packages: resolve(absoluteRoot, 'packages'),
-    output: resolve(absoluteRoot, 'dist', 'v1'),
+    v2Packages: resolve(absoluteRoot, 'packages', 'v2'),
+    output: resolve(absoluteRoot, 'dist', 'v2'),
   };
 }
 
@@ -157,7 +157,7 @@ async function writeCanonicalJson(path: string, value: string): Promise<void> {
 
 export async function buildRegistry(root = process.cwd()): Promise<MarketplaceRegistryIndex> {
   const paths = registryPaths(root);
-  const bundles = await readSourceBundles(paths.packages);
+  const bundles = await readSourceBundles(paths.v2Packages);
   const index = makeRegistryIndex(bundles.map((bundle) => bundle.entry));
 
   await rm(paths.output, { recursive: true, force: true });
@@ -181,12 +181,23 @@ async function validateArtifacts(
   bundles: readonly SourceBundle[],
   index: MarketplaceRegistryIndex,
 ): Promise<void> {
+  const retiredIds = new Set(index.retirements.map((retirement) => retirement.id));
+  for (const source of bundles) {
+    if (retiredIds.has(source.entry.id)) {
+      fail(`Retired package is present in v2 entries: ${source.entry.id}`);
+    }
+  }
+  for (const entry of index.entries) {
+    if (retiredIds.has(entry.id)) {
+      fail(`Retired package is present in v2 entries: ${entry.id}`);
+    }
+  }
   const expected = new Map(
     bundles.map((bundle) => [bundle.entry.artifactPath, bundle]),
   );
   const indexed = new Map(index.entries.map((entry) => [entry.artifactPath, entry]));
   if (expected.size !== indexed.size || [...expected.keys()].some((key) => !indexed.has(key))) {
-    fail('dist/v1/index.json does not contain exactly the source bundle set');
+    fail('dist/v2/index.json does not contain exactly the source bundle set');
   }
 
   let artifactFiles: string[];
@@ -194,7 +205,7 @@ async function validateArtifacts(
     artifactFiles = await filesUnder(resolve(paths.output, 'artifacts'));
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    fail(`Cannot read registry artifacts: ${detail}`);
+    fail(`Cannot read v2 registry artifacts: ${detail}`);
   }
   const artifactPaths = new Set(
     artifactFiles.map((path) => relative(paths.output, path).split(sep).join('/')),
@@ -203,7 +214,7 @@ async function validateArtifacts(
     artifactPaths.size !== expected.size ||
     [...expected.keys()].some((key) => !artifactPaths.has(key))
   ) {
-    fail('Registry artifacts are stale, deleted, or unexpected');
+    fail('V2 registry artifacts are stale, deleted, or unexpected');
   }
 
   for (const source of bundles) {
@@ -213,7 +224,7 @@ async function validateArtifacts(
     const artifactText = await readFile(artifactPath, 'utf8');
     const artifact = parseBundle(await readJson(artifactPath), artifactPath);
     if (artifactText.trim() !== canonicalizeMarketplaceBundle(artifact)) {
-      fail(`Registry artifact is not canonical: ${source.entry.artifactPath}`);
+      fail(`V2 registry artifact is not canonical: ${source.entry.artifactPath}`);
     }
     validateMarketplaceRegistryEntry(entry, artifact);
   }
@@ -221,17 +232,17 @@ async function validateArtifacts(
 
 export async function validateRegistry(root = process.cwd()): Promise<MarketplaceRegistryIndex> {
   const paths = registryPaths(root);
-  const bundles = await readSourceBundles(paths.packages);
+  const bundles = await readSourceBundles(paths.v2Packages);
   const indexPath = resolve(paths.output, 'index.json');
   const index = MarketplaceRegistryIndexSchema.parse(await readJson(indexPath));
   const canonicalIndex = canonicalizeMarketplaceRegistryIndex(index);
   const indexText = await readFile(indexPath, 'utf8');
   if (indexText.trim() !== canonicalIndex) {
-    fail('dist/v1/index.json is not canonical');
+    fail('dist/v2/index.json is not canonical');
   }
   const expected = makeRegistryIndex(bundles.map((bundle) => bundle.entry));
   if (canonicalIndex !== canonicalizeMarketplaceRegistryIndex(expected)) {
-    fail('dist/v1/index.json is stale or has modified registry metadata');
+    fail('dist/v2/index.json is stale or has modified registry metadata');
   }
   await validateArtifacts(paths, bundles, index);
   return index;
@@ -276,7 +287,7 @@ function verifyHistoryEdge(
   const args = parent
     ? ['diff', '--name-status', '--no-renames', parent, commit]
     : ['diff-tree', '--root', '--name-status', '--no-renames', '--no-commit-id', '-r', commit];
-  const diff = gitOutput(root, [...args, '--', 'packages', 'dist/v1']);
+  const diff = gitOutput(root, [...args, '--', 'packages', 'dist/v1', 'dist/v2']);
   const violations: string[] = [];
   for (const line of diff.split('\n').filter(Boolean)) {
     const [status, path] = line.split('\t');
@@ -288,6 +299,12 @@ function verifyHistoryEdge(
     } else if (path.startsWith('packages/')) {
       if (status !== 'A') violations.push(`${status} ${path}`);
     } else if (path.startsWith('dist/v1/')) {
+      violations.push(`${status} ${path}`);
+    } else if (path === 'dist/v2/index.json') {
+      if (status !== 'A' && status !== 'M') violations.push(`${status} ${path}`);
+    } else if (path.startsWith('dist/v2/artifacts/')) {
+      if (status !== 'A') violations.push(`${status} ${path}`);
+    } else if (path.startsWith('dist/v2/')) {
       violations.push(`${status} ${path}`);
     }
   }
@@ -359,31 +376,34 @@ function ensureCompleteHistory(root: string, head: string): void {
 
 export function verifyGeneratedOutput(root = process.cwd()): void {
   if (!revision(root, 'HEAD')) return;
-  const tracked = gitOutput(root, ['ls-files', '--', 'dist/v1'])
-    .split('\n')
-    .filter(Boolean);
-  if (tracked.length === 0) {
-    fail('Checked-in generated output is missing dist/v1 files');
-  }
-  for (const args of [
-    ['diff', '--quiet', '--', 'dist/v1'],
-    ['diff', '--cached', '--quiet', '--', 'dist/v1'],
-  ]) {
-    try {
-      execFileSync('git', args, { cwd: root, encoding: 'utf8' });
-    } catch {
-      fail('Checked-in generated output differs from the release input');
+  for (const version of ['v1', 'v2']) {
+    const output = `dist/${version}`;
+    const tracked = gitOutput(root, ['ls-files', '--', output])
+      .split('\n')
+      .filter(Boolean);
+    if (tracked.length === 0) {
+      fail(`Checked-in generated output is missing ${output} files`);
     }
-  }
-  const untracked = gitOutput(root, [
-    'status',
-    '--porcelain=v1',
-    '--untracked-files=all',
-    '--',
-    'dist/v1',
-  ]).trim();
-  if (untracked) {
-    fail('Generated output contains untracked dist/v1 files');
+    for (const args of [
+      ['diff', '--quiet', '--', output],
+      ['diff', '--cached', '--quiet', '--', output],
+    ]) {
+      try {
+        execFileSync('git', args, { cwd: root, encoding: 'utf8' });
+      } catch {
+        fail('Checked-in generated output differs from the release input');
+      }
+    }
+    const untracked = gitOutput(root, [
+      'status',
+      '--porcelain=v1',
+      '--untracked-files=all',
+      '--',
+      output,
+    ]).trim();
+    if (untracked) {
+      fail(`Generated output contains untracked ${output} files`);
+    }
   }
 }
 

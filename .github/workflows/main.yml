@@ -31,6 +31,6 @@ jobs:
       - run: bun run validate
       - uses: actions/upload-artifact@v4
         with:
-          name: registry-v1
-          path: dist/v1/
+          name: registry-dist
+          path: dist/
           if-no-files-found: error

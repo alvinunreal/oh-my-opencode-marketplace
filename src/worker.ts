@@ -5,8 +5,8 @@ interface Env {
 }
 
 const REGISTRY_HOST = 'registry.ohmyopencodeslim.com';
-const REGISTRY_PREFIX = '/v1/';
-const IMMUTABLE_ARTIFACT = /^\/v1\/artifacts\/[a-z0-9][a-z0-9._-]{0,63}\/[a-z0-9][a-z0-9._-]{0,63}\/[0-9A-Za-z.+-]+\.json$/;
+const REGISTRY_PREFIXES = ['/v1/', '/v2/'] as const;
+const IMMUTABLE_ARTIFACT = /^\/v[12]\/artifacts\/[a-z0-9][a-z0-9._-]{0,63}\/[a-z0-9][a-z0-9._-]{0,63}\/[0-9A-Za-z.+-]+\.json$/;
 
 function cacheControl(pathname: string): string {
   return IMMUTABLE_ARTIFACT.test(pathname)
@@ -17,13 +17,14 @@ function cacheControl(pathname: string): string {
 export const registryWorker = {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
-    if (url.hostname !== REGISTRY_HOST || !url.pathname.startsWith(REGISTRY_PREFIX)) {
+    const prefix = REGISTRY_PREFIXES.find((candidate) =>
+      url.pathname.startsWith(candidate),
+    );
+    if (url.hostname !== REGISTRY_HOST || !prefix) {
       return new Response('Not found', { status: 404 });
     }
 
-    const assetUrl = new URL(url);
-    assetUrl.pathname = url.pathname.slice('/v1'.length) || '/';
-    const assetRequest = new Request(assetUrl, request);
+    const assetRequest = new Request(url, request);
     const response = await env.ASSETS.fetch(assetRequest);
     if (!response.ok) return response;
 

@@ -1,0 +1,50 @@
+{
+  "manifest": {
+    "schemaVersion": 2,
+    "id": "alvin/evidence-scout",
+    "version": "0.1.0-beta.1",
+    "displayName": "Evidence Scout",
+    "description": "A Librarian-derived agent for authoritative documentation and version-specific implementation research.",
+    "agentName": "evidence-scout",
+    "prompt": "Research from authoritative sources first: official documentation, source repositories, release notes, and primary specifications. Match findings to the exact dependency or runtime version in the task. Quote the relevant behavior or API, include direct links, and clearly label community examples versus primary evidence. Compare conflicting sources instead of silently choosing one. Stay read-only and return a focused recommendation with the evidence needed for implementation.",
+    "routing": {
+      "description": "Use when a library API, release behavior, or external convention must be verified before coding.",
+      "when": "The answer depends on current or version-specific library documentation, official examples, or an unfamiliar external system.",
+      "keywords": [
+        "docs",
+        "API",
+        "version behavior",
+        "research"
+      ]
+    },
+    "skills": [],
+    "mcps": [
+      "context7",
+      "gh_grep"
+    ],
+    "tools": [
+      "webfetch",
+      "websearch",
+      "read"
+    ],
+    "author": {
+      "name": "Alvin"
+    },
+    "tags": [
+      "deepwork",
+      "librarian",
+      "documentation"
+    ],
+    "license": "MIT",
+    "compatibility": {
+      "plugin": ">=3.0.0-beta.3 <4.0.0"
+    },
+    "model": {
+      "source": "builtin"
+    },
+    "extends": {
+      "builtin": "librarian",
+      "promptMode": "append"
+    }
+  }
+}
