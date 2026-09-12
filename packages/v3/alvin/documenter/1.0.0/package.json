@@ -36,7 +36,7 @@
       "source": "session"
     },
     "routing": {
-      "lane": "Documentation structure and maintenance",
+      "lane": "Documentation Architecture",
       "stats": [
         "3× faster documentation architecture",
         "½ orchestration cost",

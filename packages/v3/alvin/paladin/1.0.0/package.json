@@ -34,7 +34,7 @@
       "source": "session"
     },
     "routing": {
-      "lane": "Security architecture and code review",
+      "lane": "Security & Risk",
       "stats": [
         "5× stronger security/risk review",
         "Same orchestration cost",

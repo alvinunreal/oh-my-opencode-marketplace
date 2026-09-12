@@ -34,7 +34,7 @@
       "source": "session"
     },
     "routing": {
-      "lane": "Maintenance audit",
+      "lane": "Repository Health",
       "stats": [
         "2× faster maintenance audits",
         "½ orchestration cost",
