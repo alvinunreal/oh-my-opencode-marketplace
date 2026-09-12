@@ -402,10 +402,17 @@ describe('registry build and validation', () => {
     );
   });
 
-  test('allows mutable index-only history changes but rejects generated drift', async () => {
+  test('allows mutable registry metadata changes but rejects generated drift', async () => {
     const fixture = await gitFixture();
     await writeFile(resolve(fixture.root, 'dist/v1/index.json'), '{"entries":[1]}\n');
     commitFixture(fixture.root, 'catalog update');
+    expect(() => verifyAdditiveAgainstGit(fixture.base, fixture.root)).not.toThrow();
+
+    await writeFile(
+      resolve(fixture.root, 'dist/v2/catalog.json'),
+      '{"schemaVersion":1,"agents":[]}\n',
+    );
+    commitFixture(fixture.root, 'v2 catalog update');
     expect(() => verifyAdditiveAgainstGit(fixture.base, fixture.root)).not.toThrow();
 
     await writeFile(resolve(fixture.root, 'dist/v1/index.json'), '{"entries":[2]}\n');

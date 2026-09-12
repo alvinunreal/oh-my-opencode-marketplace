@@ -352,7 +352,7 @@ function verifyHistoryEdge(
       if (status !== 'A') violations.push(`${status} ${path}`);
     } else if (path.startsWith('dist/v1/')) {
       violations.push(`${status} ${path}`);
-    } else if (path === 'dist/v2/index.json') {
+    } else if (path === 'dist/v2/index.json' || path === 'dist/v2/catalog.json') {
       if (status !== 'A' && status !== 'M') violations.push(`${status} ${path}`);
     } else if (path.startsWith('dist/v2/artifacts/')) {
       if (status !== 'A') violations.push(`${status} ${path}`);
