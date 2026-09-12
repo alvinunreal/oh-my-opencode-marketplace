@@ -5,9 +5,12 @@ import { resolve } from 'node:path';
 import { afterEach, describe, expect, test } from 'bun:test';
 import {
   buildRegistry,
+  buildV3Registry,
+  MAX_AVATAR_BYTES,
   makeRegistryIndex,
   registryPaths,
   validateRegistry,
+  validateV3Registry,
   verifyAdditiveAgainstGit,
   verifyGeneratedOutput,
 } from './registry';
@@ -58,6 +61,27 @@ function bundle(
   });
 }
 
+function v3Bundle(
+  id = 'alvin/test-package',
+  version = '1.0.0',
+): MarketplacePackageBundle {
+  const source = bundle(id, version);
+  return MarketplacePackageBundleSchema.parse({
+    manifest: {
+      ...source.manifest,
+      schemaVersion: 3,
+      routing: {
+        lane: 'Contract test lane.',
+        stats: ['Fast', 'Focused'],
+        delegateWhen: ['The request matches the contract test scope.'],
+        avoid: ['Unbounded work.'],
+      },
+      compatibility: { plugin: '>=3.0.0-beta.6 <4.0.0' },
+      extends: { builtin: 'explorer', promptMode: 'append' },
+    },
+  });
+}
+
 async function rootWithBundles(
   values: Array<[string, string]> = [['alvin/test-package', '1.0.0']],
 ): Promise<string> {
@@ -92,6 +116,76 @@ async function writeBundle(
   const path = resolve(root, 'packages', 'v2', publisher, name, version, 'package.json');
   await mkdir(resolve(path, '..'), { recursive: true });
   await writeFile(path, `${JSON.stringify(source, null, 2)}\n`, 'utf8');
+}
+
+async function writeV3Bundle(
+  root: string,
+  id: string,
+  version: string,
+  source: unknown = v3Bundle(id, version),
+): Promise<void> {
+  const [publisher, name] = id.split('/');
+  const path = resolve(root, 'packages/v3', publisher, name, version, 'package.json');
+  await mkdir(resolve(path, '..'), { recursive: true });
+  await writeFile(path, `${JSON.stringify(source, null, 2)}\n`, 'utf8');
+}
+
+async function rootWithV3Bundles(
+  values: Array<[string, string]> = [['alvin/test-package', '1.0.0']],
+): Promise<string> {
+  const root = await mkdtemp(resolve(tmpdir(), 'marketplace-v3-test-'));
+  temporaryRoots.push(root);
+  for (const [id, version] of values) {
+    await writeV3Bundle(root, id, version);
+  }
+  await writeFile(
+    resolve(root, 'catalog.json'),
+    `${JSON.stringify(
+      {
+        schemaVersion: 1,
+        agents: [...new Set(values.map(([id]) => id))]
+          .sort()
+          .map((id) => ({ id, state: 'active' })),
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  return root;
+}
+
+function squareAvatar(): Buffer {
+  return Buffer.from('UklGRhwAAABXRUJQVlA4TA8AAAAvAAAAAAcQ/Y/+ByKi/wEA', 'base64');
+}
+
+async function writeAvatar(root: string, id = 'alvin/test-package', version = '1.0.0', value = squareAvatar()): Promise<string> {
+  return writeAvatarInRoot(root, 'v2', id, version, value);
+}
+
+async function writeV3Avatar(root: string, id = 'alvin/test-package', version = '1.0.0', value = squareAvatar()): Promise<string> {
+  return writeAvatarInRoot(root, 'v3', id, version, value);
+}
+
+async function writeAvatarInRoot(
+  root: string,
+  registryVersion: 'v2' | 'v3',
+  id: string,
+  version: string,
+  value: Buffer,
+): Promise<string> {
+  const [publisher, name] = id.split('/');
+  const path = resolve(
+    root,
+    'packages',
+    registryVersion,
+    publisher,
+    name,
+    version,
+    'avatar.webp',
+  );
+  await mkdir(resolve(path, '..'), { recursive: true });
+  await writeFile(path, value);
+  return path;
 }
 
 function git(root: string, args: string[]): string {
@@ -176,6 +270,90 @@ describe('registry build and validation', () => {
     );
     expect(await readFile(resolve(registryPaths(root).output, 'index.json'), 'utf8'))
       .toContain('alvin/test-package');
+  });
+
+  test('builds an independent v3 registry with structured routing metadata', async () => {
+    const root = await rootWithV3Bundles();
+
+    const index = await buildV3Registry(root);
+    const validated = await validateV3Registry(root);
+
+    expect(index.entries).toHaveLength(1);
+    expect(validated.entries[0]?.digest.domain).toBe('marketplace-agent-bundle-v3');
+    expect(validated.entries[0]?.summary.routing).toEqual({
+      lane: 'Contract test lane.',
+      stats: ['Fast', 'Focused'],
+      delegateWhen: ['The request matches the contract test scope.'],
+      avoid: ['Unbounded work.'],
+    });
+    expect(await readFile(resolve(registryPaths(root).v3Output, 'index.json'), 'utf8'))
+      .toContain('marketplace-agent-bundle-v3');
+  });
+
+  test('publishes an optional square WebP avatar separately from the manifest', async () => {
+    const root = await rootWithBundles();
+    const sourceAvatar = await writeAvatar(root);
+
+    await buildRegistry(root);
+    const output = registryPaths(root).output;
+    const artifactAvatar = resolve(
+      output,
+      'artifacts/alvin/test-package/1.0.0.webp',
+    );
+
+    expect(await readFile(artifactAvatar)).toEqual(await readFile(sourceAvatar));
+    expect(await readFile(resolve(output, 'index.json'), 'utf8')).not.toContain('avatar');
+    expect(await readFile(resolve(output, 'artifacts/alvin/test-package/1.0.0.json'), 'utf8')).not.toContain('avatar');
+    await expect(validateRegistry(root)).resolves.toBeDefined();
+  });
+
+  test('publishes v3 avatars with the same immutable validation', async () => {
+    const root = await rootWithV3Bundles();
+    const sourceAvatar = await writeV3Avatar(root);
+
+    await buildV3Registry(root);
+    const artifactAvatar = resolve(
+      registryPaths(root).v3Output,
+      'artifacts/alvin/test-package/1.0.0.webp',
+    );
+
+    expect(await readFile(artifactAvatar)).toEqual(await readFile(sourceAvatar));
+    await expect(validateV3Registry(root)).resolves.toBeDefined();
+  });
+
+  test('rejects invalid, non-square, and oversized avatars', async () => {
+    const invalidRoot = await rootWithBundles();
+    await writeAvatar(invalidRoot, 'alvin/test-package', '1.0.0', Buffer.from('not a WebP'));
+    await expect(buildRegistry(invalidRoot)).rejects.toThrow(/valid WebP/);
+
+    const nonSquareRoot = await rootWithBundles();
+    const nonSquare = squareAvatar();
+    nonSquare[21] = 1;
+    await writeAvatar(nonSquareRoot, 'alvin/test-package', '1.0.0', nonSquare);
+    await expect(buildRegistry(nonSquareRoot)).rejects.toThrow(/square/);
+
+    const oversizedRoot = await rootWithBundles();
+    await writeAvatar(
+      oversizedRoot,
+      'alvin/test-package',
+      '1.0.0',
+      Buffer.alloc(MAX_AVATAR_BYTES + 1),
+    );
+    await expect(buildRegistry(oversizedRoot)).rejects.toThrow(/byte limit/);
+  });
+
+  test('detects modified and stale immutable avatar artifacts', async () => {
+    const root = await rootWithBundles();
+    await writeAvatar(root);
+    const output = registryPaths(root).output;
+    await buildRegistry(root);
+    const artifact = resolve(output, 'artifacts/alvin/test-package/1.0.0.webp');
+
+    const modified = squareAvatar();
+    modified[29] ^= 1;
+    await writeFile(artifact, modified);
+    await expect(validateRegistry(root)).rejects.toThrow(/differs from its immutable source avatar/);
+    await expect(buildRegistry(root)).rejects.toThrow(/immutable source avatar/);
   });
 
   test('retires packages without deleting their immutable artifacts', async () => {

@@ -1,6 +1,6 @@
 import {
-  buildRegistry,
-  validateRegistry,
+  buildAllRegistries,
+  validateAllRegistries,
   verifyAdditiveAgainstGit,
   verifyForDeployment,
   verifyCurrentMain,
@@ -18,11 +18,11 @@ const command = process.argv[2];
 
 try {
   if (command === 'build') {
-    const index = await buildRegistry();
-    console.log(`Built ${index.entries.length} registry artifacts in dist/v2/`);
+    await buildAllRegistries();
+    console.log('Built v2 and v3 registry artifacts');
   } else if (command === 'validate') {
-    const index = await validateRegistry();
-    console.log(`Validated ${index.entries.length} registry artifacts`);
+    await validateAllRegistries();
+    console.log('Validated v2 and v3 registry artifacts');
   } else if (command === 'verify-additive') {
     verifyAdditiveAgainstGit(
       process.argv[3] === '--' ? process.argv[4] : process.argv[3],

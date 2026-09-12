@@ -5,8 +5,8 @@ interface Env {
 }
 
 const REGISTRY_HOST = 'registry.ohmyopencodeslim.com';
-const REGISTRY_PREFIXES = ['/v1/', '/v2/'] as const;
-const IMMUTABLE_ARTIFACT = /^\/v[12]\/artifacts\/[a-z0-9][a-z0-9._-]{0,63}\/[a-z0-9][a-z0-9._-]{0,63}\/[0-9A-Za-z.+-]+\.json$/;
+const REGISTRY_PREFIXES = ['/v1/', '/v2/', '/v3/'] as const;
+const IMMUTABLE_ARTIFACT = /^\/v[123]\/artifacts\/[a-z0-9][a-z0-9._-]{0,63}\/[a-z0-9][a-z0-9._-]{0,63}\/[0-9A-Za-z.+-]+\.(?:json|webp)$/;
 
 function assetRequest(url: URL, request: Request): Request {
   // The assets directory is dist/, so the version prefix is part of the

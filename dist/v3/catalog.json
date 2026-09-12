@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "agents": [
+    {
+      "id": "alvin/codebase-janitor",
+      "state": "active"
+    },
+    {
+      "id": "alvin/evidence-scout",
+      "state": "retired"
+    },
+    {
+      "id": "alvin/interface-critic",
+      "state": "active"
+    },
+    {
+      "id": "alvin/security-reviewer",
+      "state": "active"
+    },
+    {
+      "id": "alvin/visual-inspector",
+      "state": "retired"
+    }
+  ]
+}

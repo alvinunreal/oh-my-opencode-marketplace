@@ -5,17 +5,19 @@ This repository is the GitOps source and static registry for curated
 
 <https://registry.ohmyopencodeslim.com/v1/>
 <https://registry.ohmyopencodeslim.com/v2/>
+<https://registry.ohmyopencodeslim.com/v3/>
 
 ## Contract
 
-The registry uses the published, exact dependency
-`oh-my-opencode-slim@3.0.0-beta.3`, importing its
+The registry uses the plugin's published marketplace contract, importing its
 `oh-my-opencode-slim/marketplace-contract` subpath. The repository does not
 copy the manifest schema, digest algorithm, summary projection, index schema,
 or artifact path rules. The v1 contract's registry schema version is `1` and
 its digest domain is `marketplace-bundle-v1`. The v2 contract's manifest
 schema version is `2`, registry schema version is `3`, and digest domain is
-`marketplace-agent-bundle-v2`.
+`marketplace-agent-bundle-v2`. The v3 contract's manifest schema version is `3`
+and digest domain is `marketplace-agent-bundle-v3`; v3 has its own index and
+artifact tree.
 
 ## Contributing a package
 
@@ -31,6 +33,26 @@ V2 agent bundles use the isolated migration root:
 packages/v2/<publisher>/<package>/<version>/package.json
 ```
 
+V3 agent bundles use a separate source root and structured routing fields:
+
+```text
+packages/v3/<publisher>/<package>/<version>/package.json
+```
+
+V3 routing requires non-empty `lane`, `stats`, `delegateWhen`, and `avoid`
+values. V3 extensions are append-only (`extends.promptMode` must be
+`append`).
+
+An agent version directory may also contain an optional `avatar.webp`. It must
+be a square WebP image no larger than 512 KiB. The build publishes it as
+immutable generated content at the matching versioned URL:
+
+The v2 and v3 artifact paths are shown below.
+
+Avatars are separate from the signed agent manifest and registry index. Like
+the manifest, an avatar is immutable once published; publish a new version to
+change it. No other files are allowed in a version directory.
+
 The file contains the contract-defined `{ "manifest": ... }` bundle. The
 publisher, package, and exact semantic version directory names must match the
 manifest's `id` and `version`. Versions are immutable: publish a new version
@@ -42,6 +64,14 @@ v2 index and artifacts at the exact paths defined by the contract:
 
 ```text
 dist/v2/artifacts/<publisher>/<package>/<version>.json
+dist/v2/artifacts/<publisher>/<package>/<version>.webp # when avatar.webp exists
+```
+
+V3 source bundles generate independent artifacts:
+
+```text
+dist/v3/artifacts/<publisher>/<package>/<version>.json
+dist/v3/artifacts/<publisher>/<package>/<version>.webp # when avatar.webp exists
 ```
 
 `catalog.json` is the registry-owned lifecycle control plane. Every source
@@ -51,7 +81,7 @@ package ID has exactly one entry with one of these states:
 - `retired`: unavailable for new installation and hidden from the website.
 
 Retired package artifacts remain in the immutable source and generated trees,
-but are absent from v2 entries. The plugin's permanent legacy retirements are
+but are absent from v2 and v3 entries. The plugin's permanent legacy retirements are
 merged at build time; changes to this catalog never require a plugin release.
 
 Use `bun run catalog:list` to inspect states or
@@ -76,13 +106,13 @@ bun test
 bun run typecheck
 ```
 
-`build` appends missing v2 artifacts and deterministically regenerates the v2
-index; it never rewrites existing artifacts. `dist/v1/` is never removed or
-rewritten. `validate` checks v2 source identity, canonical index and retirement
-ordering, complete artifact coverage, digests, and stale/deleted/modified
-artifacts. `verify-additive` walks every available parent-to-child edge in
+`build` appends missing v2 and v3 artifacts and deterministically regenerates
+both indexes; it never rewrites existing artifacts. `dist/v1/` is never removed
+or rewritten. `validate` checks both v2 and v3 source identity, canonical index
+and retirement ordering, complete artifact coverage, digests, and
+stale/deleted/modified artifacts. `verify-additive` walks every available parent-to-child edge in
 complete Git history, allowing only new package and artifact paths while
-permitting index updates. `verify-generated` checks both versioned trees,
+permitting index updates. `verify-generated` checks all three versioned trees,
 including that v1 has not drifted. Shallow or missing history fails closed
 (apart from an empty/bootstrap repository).
 
@@ -91,7 +121,7 @@ including that v1 has not drifted. Shallow or missing history fails closed
 Cloudflare Workers Static Assets is configured in `wrangler.toml` and
 `src/worker.ts`. A single `wrangler deploy` uploads the complete `dist/` tree
 atomically. The Worker serves only
-`registry.ohmyopencodeslim.com/v1/*` and `/v2/*`, mapping each versioned root
+`registry.ohmyopencodeslim.com/v1/*`, `/v2/*`, and `/v3/*`, mapping each versioned root
 to its assets. Versioned artifact paths receive
 `max-age=31536000, immutable`; both catalogs and other registry output receive
 short-lived, revalidated caching (`max-age=60`).

@@ -87,6 +87,18 @@ export function validateCatalogSourceIds(
   }
 }
 
+export function validateCatalogContainsSourceIds(
+  catalog: RegistryCatalog,
+  sourceIds: Iterable<string>,
+): void {
+  const actual = new Set(catalog.agents.map((agent) => agent.id));
+  for (const id of new Set(sourceIds)) {
+    if (!actual.has(id)) {
+      fail(`Registry catalog is missing lifecycle entry for source package ${id}`);
+    }
+  }
+}
+
 export function retiredCatalogIds(catalog: RegistryCatalog): ReadonlySet<string> {
   return new Set(
     catalog.agents

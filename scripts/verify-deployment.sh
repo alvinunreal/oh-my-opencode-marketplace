@@ -2,7 +2,7 @@
 set -euo pipefail
 
 readonly BASE_URL='https://registry.ohmyopencodeslim.com'
-readonly VERSIONS=('v1' 'v2')
+readonly VERSIONS=('v1' 'v2' 'v3')
 readonly ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly CACHE_BUST="${DEPLOY_SMOKE_CACHE_BUST:?DEPLOY_SMOKE_CACHE_BUST must be set to a unique deployment probe value}"
 readonly TEMP_DIR="$(mktemp -d)"
