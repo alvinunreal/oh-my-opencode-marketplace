@@ -40,10 +40,10 @@ describe('published marketplace state', () => {
     expect(await filesUnder(resolve(root, 'packages'))).toEqual([
       'v3/alvin/documenter/1.0.0/avatar.webp',
       'v3/alvin/documenter/1.0.0/package.json',
-      'v3/alvin/janitor/1.0.0/avatar.webp',
-      'v3/alvin/janitor/1.0.0/package.json',
-      'v3/alvin/paladin/1.0.0/avatar.webp',
-      'v3/alvin/paladin/1.0.0/package.json',
+      'v3/alvin/janitor/1.0.1/avatar.webp',
+      'v3/alvin/janitor/1.0.1/package.json',
+      'v3/alvin/paladin/1.0.1/avatar.webp',
+      'v3/alvin/paladin/1.0.1/package.json',
     ]);
   });
 
@@ -53,10 +53,10 @@ describe('published marketplace state', () => {
     expect(await filesUnder(resolve(root, 'dist/v3/artifacts'))).toEqual([
       'alvin/documenter/1.0.0.json',
       'alvin/documenter/1.0.0.webp',
-      'alvin/janitor/1.0.0.json',
-      'alvin/janitor/1.0.0.webp',
-      'alvin/paladin/1.0.0.json',
-      'alvin/paladin/1.0.0.webp',
+      'alvin/janitor/1.0.1.json',
+      'alvin/janitor/1.0.1.webp',
+      'alvin/paladin/1.0.1.json',
+      'alvin/paladin/1.0.1.webp',
     ]);
 
     const v1Index = await readJson('dist/v1/index.json');

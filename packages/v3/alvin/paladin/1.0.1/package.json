@@ -2,7 +2,7 @@
   "manifest": {
     "schemaVersion": 3,
     "id": "alvin/paladin",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "displayName": "Paladin",
     "description": "A standalone, read-only security reviewer for architecture and code risk.",
     "agentName": "paladin",
@@ -41,7 +41,8 @@
         "Read-only"
       ],
       "delegateWhen": [
-        "A change crosses a trust boundary or handles authorization, sessions, secrets, untrusted input, files, external requests, command execution, payments, or sensitive state.",
+        "A change crosses a trust boundary or handles authorization, sessions, secrets, untrusted input, or files.",
+        "A change handles external requests, command execution, payments, or sensitive state.",
         "A concrete change or architecture needs threat modeling, pre-release security review, or validation of a suspected vulnerability.",
         "The exploitability or impact of a security finding is unclear and needs code-grounded triage."
       ],

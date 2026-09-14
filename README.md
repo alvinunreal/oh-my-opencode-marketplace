@@ -40,7 +40,11 @@ packages/v3/<publisher>/<package>/<version>/package.json
 ```
 
 V3 routing requires non-empty `lane`, `stats`, `delegateWhen`, and `avoid`
-values. V3 extensions are append-only (`extends.promptMode` must be
+values. Each `delegateWhen` line must be 1–160 characters after trimming,
+with no CR or LF characters; provide 1–8 unique lines. Split distinct routing
+conditions into meaningful lines rather than truncating them. These limits
+come directly from the published contract, not a registry-specific override.
+V3 extensions are append-only (`extends.promptMode` must be
 `append`).
 
 An agent version directory may also contain an optional `avatar.webp`. It must
@@ -84,7 +88,13 @@ Use `bun run catalog:list` to inspect the package list before running the normal
 build and validation commands.
 
 Remote installation and web-displayed package references should use an exact
-version, for example `alvin/janitor@1.0.0`.
+version. Use the package IDs `alvin/janitor` and `alvin/paladin` (not display
+names or author names), for example:
+
+```sh
+bunx oh-my-opencode-slim@3.0.0-beta.12 marketplace install alvin/janitor@1.0.1
+bunx oh-my-opencode-slim@3.0.0-beta.12 marketplace install alvin/paladin@1.0.1
+```
 
 ## Local verification
 

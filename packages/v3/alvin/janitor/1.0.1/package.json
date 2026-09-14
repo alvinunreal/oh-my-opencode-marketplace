@@ -2,7 +2,7 @@
   "manifest": {
     "schemaVersion": 3,
     "id": "alvin/janitor",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "displayName": "Janitor",
     "description": "A standalone, read-only maintenance auditor for repository maintainability.",
     "agentName": "janitor",
@@ -41,7 +41,7 @@
         "Read-only"
       ],
       "delegateWhen": [
-        "Repository change cost is rising and duplication, dead paths, tangled ownership, oversized or mixed-responsibility modules, or stale scaffolding may be responsible.",
+        "Repository change cost is rising due to duplication, dead paths, tangled ownership, oversized or mixed-responsibility modules, or stale scaffolding.",
         "A substantial refactor, migration, or release needs a read-only maintainability audit that prioritizes worthwhile cleanup."
       ],
       "avoid": [

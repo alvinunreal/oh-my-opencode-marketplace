@@ -8,6 +8,7 @@ import {
   buildV3Registry,
   MAX_AVATAR_BYTES,
   makeRegistryIndex,
+  makeRegistryIndexV3,
   registryPaths,
   validateRegistry,
   validateV3Registry,
@@ -15,7 +16,16 @@ import {
 } from './registry';
 import {
   MarketplacePackageBundleSchema,
+  MarketplacePackageBundleV2Schema,
+  MarketplacePackageBundleV3Schema,
+  MarketplaceRegistryIndexSchema,
+  MarketplaceRegistryIndexV3Schema,
   createMarketplaceRegistryEntry,
+  createMarketplaceRegistryEntryV3,
+  parseMarketplaceRegistryIndex,
+  parseMarketplaceRegistryIndexV3,
+  validateMarketplaceRegistryEntry,
+  validateMarketplaceRegistryEntryV3,
   type MarketplacePackageBundle,
 } from 'oh-my-opencode-slim/marketplace-contract';
 
@@ -157,6 +167,30 @@ function squareAvatar(): Buffer {
   return Buffer.from('UklGRhwAAABXRUJQVlA4TA8AAAAvAAAAAAcQ/Y/+ByKi/wEA', 'base64');
 }
 
+async function assertCanonicalArtifacts(root: string, version: 'v2' | 'v3'): Promise<void> {
+  const output = resolve(root, 'dist', version);
+  const value = JSON.parse(await readFile(resolve(output, 'index.json'), 'utf8'));
+  if (version === 'v3') {
+    const index = MarketplaceRegistryIndexV3Schema.parse(value);
+    expect(parseMarketplaceRegistryIndexV3(value)).toEqual(index);
+    for (const entry of index.entries) {
+      const artifact = MarketplacePackageBundleV3Schema.parse(
+        JSON.parse(await readFile(resolve(output, entry.artifactPath), 'utf8')),
+      );
+      expect(() => validateMarketplaceRegistryEntryV3(entry, artifact)).not.toThrow();
+    }
+  } else {
+    const index = MarketplaceRegistryIndexSchema.parse(value);
+    expect(parseMarketplaceRegistryIndex(value)).toEqual(index);
+    for (const entry of index.entries) {
+      const artifact = MarketplacePackageBundleV2Schema.parse(
+        JSON.parse(await readFile(resolve(output, entry.artifactPath), 'utf8')),
+      );
+      expect(() => validateMarketplaceRegistryEntry(entry, artifact)).not.toThrow();
+    }
+  }
+}
+
 function git(root: string, args: string[]): string {
   return execFileSync('git', args, { cwd: root, encoding: 'utf8' });
 }
@@ -223,6 +257,92 @@ async function writeAvatarInRoot(
 }
 
 describe('registry build and validation', () => {
+  test('checked-in v2 and v3 output satisfies the independent published contract', async () => {
+    const root = resolve(import.meta.dir, '..');
+    await assertCanonicalArtifacts(root, 'v2');
+    await assertCanonicalArtifacts(root, 'v3');
+  });
+
+  test('generated v2 and v3 output satisfies the independent published contract', async () => {
+    const v2Root = await rootWithBundles();
+    const v3Root = await rootWithV3Bundles();
+    await buildRegistry(v2Root);
+    await buildV3Registry(v3Root);
+    await assertCanonicalArtifacts(v2Root, 'v2');
+    await assertCanonicalArtifacts(v3Root, 'v3');
+  });
+
+  test('accepts a 160-character v3 delegateWhen line', async () => {
+    const root = await rootWithV3Bundles();
+    const source = MarketplacePackageBundleV3Schema.parse(v3Bundle());
+    source.manifest.routing.delegateWhen = ['x'.repeat(160)];
+    await writeV3Bundle(root, source.manifest.id, source.manifest.version, source);
+    await buildV3Registry(root);
+    await expect(validateV3Registry(root)).resolves.toBeDefined();
+    await assertCanonicalArtifacts(root, 'v3');
+  });
+
+  for (const line of ['x'.repeat(161), 'x'.repeat(200), 'first\rsecond', 'first\nsecond']) {
+    test(`rejects invalid v3 routing ${JSON.stringify(line)}`, async () => {
+      const root = await rootWithV3Bundles();
+      const source = MarketplacePackageBundleV3Schema.parse(v3Bundle());
+      source.manifest.routing.delegateWhen = [line];
+      expect(MarketplacePackageBundleV3Schema.safeParse(source).success).toBe(false);
+      await writeV3Bundle(root, source.manifest.id, source.manifest.version, source);
+      await expect(buildV3Registry(root)).rejects.toThrow(/Invalid marketplace v3 bundle/);
+    });
+  }
+
+  test('rejects corrupted routing in both the published index and artifact', async () => {
+    const root = await rootWithV3Bundles();
+    const index = await buildV3Registry(root);
+    const indexPath = resolve(registryPaths(root).v3Output, 'index.json');
+    const original = await readFile(indexPath, 'utf8');
+    const entry = index.entries[0]!;
+    entry.summary.routing.delegateWhen = ['x'.repeat(161)];
+    expect(() => parseMarketplaceRegistryIndexV3(index)).toThrow();
+    await writeFile(indexPath, JSON.stringify(index));
+    await expect(validateV3Registry(root)).rejects.toThrow();
+
+    await writeFile(indexPath, original);
+    const artifactPath = resolve(registryPaths(root).v3Output, entry.artifactPath);
+    const artifact = JSON.parse(await readFile(artifactPath, 'utf8'));
+    artifact.manifest.routing.delegateWhen = ['first\nsecond'];
+    expect(MarketplacePackageBundleV3Schema.safeParse(artifact).success).toBe(false);
+    await writeFile(artifactPath, JSON.stringify(artifact));
+    await expect(validateV3Registry(root)).rejects.toThrow(/Invalid marketplace v3 bundle/);
+  });
+
+  for (const version of ['v2', 'v3'] as const) {
+    test(`${version} uses the complete index contract`, async () => {
+      const root = version === 'v2' ? await rootWithBundles() : await rootWithV3Bundles();
+      const build = version === 'v2' ? buildRegistry : buildV3Registry;
+      const validate = version === 'v2' ? validateRegistry : validateV3Registry;
+      const index = await build(root);
+      const path = resolve(root, 'dist', version, 'index.json');
+      for (const invalid of [
+        { ...index, unexpected: true },
+        { ...index, entries: [...index.entries, ...index.entries] },
+        { ...index, retirements: [{ id: 'alvin/test-package' }] },
+      ]) {
+        await writeFile(path, JSON.stringify(invalid));
+        await expect(validate(root)).rejects.toThrow();
+      }
+    });
+  }
+
+  test('sorts versions semantically in both index builders', () => {
+    const versions = ['1.10.0', '1.2.0'];
+    const v2 = makeRegistryIndex(versions.map((version) =>
+      createMarketplaceRegistryEntry(bundle('alvin/test-package', version)),
+    ));
+    const v3 = makeRegistryIndexV3(versions.map((version) =>
+      createMarketplaceRegistryEntryV3(v3Bundle('alvin/test-package', version)),
+    ));
+    expect(v2.entries.map((entry) => entry.version)).toEqual(['1.2.0', '1.10.0']);
+    expect(v3.entries.map((entry) => entry.version)).toEqual(['1.2.0', '1.10.0']);
+  });
+
   test('leaves the published v1 output byte-identical', async () => {
     const root = await rootWithBundles();
     const v1Index = resolve(root, 'dist/v1/index.json');
