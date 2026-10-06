@@ -12,6 +12,22 @@
     {
       "id": "alvin/paladin",
       "state": "active"
+    },
+    {
+      "id": "capybearista/chronicler",
+      "state": "active"
+    },
+    {
+      "id": "capybearista/code-reviewer",
+      "state": "active"
+    },
+    {
+      "id": "capybearista/pr-test-analyzer",
+      "state": "active"
+    },
+    {
+      "id": "capybearista/silent-failure-hunter",
+      "state": "active"
     }
   ]
 }
