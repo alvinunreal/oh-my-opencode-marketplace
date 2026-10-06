@@ -44,10 +44,10 @@ describe('published marketplace state', () => {
       'v3/alvin/janitor/1.0.1/package.json',
       'v3/alvin/paladin/1.0.1/avatar.webp',
       'v3/alvin/paladin/1.0.1/package.json',
+      'v3/capybearista/arbiter/1.0.0/package.json',
       'v3/capybearista/chronicler/1.0.0/package.json',
-      'v3/capybearista/code-reviewer/1.0.0/package.json',
-      'v3/capybearista/pr-test-analyzer/1.0.0/package.json',
-      'v3/capybearista/silent-failure-hunter/1.0.0/package.json',
+      'v3/capybearista/hunter/1.0.0/package.json',
+      'v3/capybearista/proctor/1.0.0/package.json',
     ]);
   });
 
@@ -61,10 +61,10 @@ describe('published marketplace state', () => {
       'alvin/janitor/1.0.1.webp',
       'alvin/paladin/1.0.1.json',
       'alvin/paladin/1.0.1.webp',
+      'capybearista/arbiter/1.0.0.json',
       'capybearista/chronicler/1.0.0.json',
-      'capybearista/code-reviewer/1.0.0.json',
-      'capybearista/pr-test-analyzer/1.0.0.json',
-      'capybearista/silent-failure-hunter/1.0.0.json',
+      'capybearista/hunter/1.0.0.json',
+      'capybearista/proctor/1.0.0.json',
     ]);
 
     const v1Index = await readJson('dist/v1/index.json');
@@ -81,10 +81,10 @@ describe('published marketplace state', () => {
       'alvin/documenter',
       'alvin/janitor',
       'alvin/paladin',
+      'capybearista/arbiter',
       'capybearista/chronicler',
-      'capybearista/code-reviewer',
-      'capybearista/pr-test-analyzer',
-      'capybearista/silent-failure-hunter',
+      'capybearista/hunter',
+      'capybearista/proctor',
     ]);
   });
 
@@ -93,10 +93,10 @@ describe('published marketplace state', () => {
       { id: 'alvin/documenter', state: 'active' },
       { id: 'alvin/janitor', state: 'active' },
       { id: 'alvin/paladin', state: 'active' },
+      { id: 'capybearista/arbiter', state: 'active' },
       { id: 'capybearista/chronicler', state: 'active' },
-      { id: 'capybearista/code-reviewer', state: 'active' },
-      { id: 'capybearista/pr-test-analyzer', state: 'active' },
-      { id: 'capybearista/silent-failure-hunter', state: 'active' },
+      { id: 'capybearista/hunter', state: 'active' },
+      { id: 'capybearista/proctor', state: 'active' },
     ];
     for (const path of ['catalog.json', 'dist/v2/catalog.json', 'dist/v3/catalog.json']) {
       expect((await readJson(path)).agents).toEqual(expected);

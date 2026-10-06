@@ -14,19 +14,19 @@
       "state": "active"
     },
     {
+      "id": "capybearista/arbiter",
+      "state": "active"
+    },
+    {
       "id": "capybearista/chronicler",
       "state": "active"
     },
     {
-      "id": "capybearista/code-reviewer",
+      "id": "capybearista/hunter",
       "state": "active"
     },
     {
-      "id": "capybearista/pr-test-analyzer",
-      "state": "active"
-    },
-    {
-      "id": "capybearista/silent-failure-hunter",
+      "id": "capybearista/proctor",
       "state": "active"
     }
   ]
