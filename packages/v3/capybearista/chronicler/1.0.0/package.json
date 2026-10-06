@@ -35,7 +35,7 @@
     ],
     "license": "MIT",
     "compatibility": {
-      "plugin": ">=3.0.2 <4.0.0"
+      "plugin": ">=3.0.1 <4.0.0"
     },
     "model": {
       "source": "session"
