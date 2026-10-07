@@ -12,6 +12,22 @@
     {
       "id": "alvin/paladin",
       "state": "active"
+    },
+    {
+      "id": "capybearista/arbiter",
+      "state": "active"
+    },
+    {
+      "id": "capybearista/chronicler",
+      "state": "active"
+    },
+    {
+      "id": "capybearista/hunter",
+      "state": "active"
+    },
+    {
+      "id": "capybearista/proctor",
+      "state": "active"
     }
   ]
 }

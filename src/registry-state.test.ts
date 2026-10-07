@@ -44,7 +44,29 @@ describe('published marketplace state', () => {
       'v3/alvin/janitor/1.0.1/package.json',
       'v3/alvin/paladin/1.0.1/avatar.webp',
       'v3/alvin/paladin/1.0.1/package.json',
+      'v3/capybearista/arbiter/1.0.0/avatar.webp',
+      'v3/capybearista/arbiter/1.0.0/package.json',
+      'v3/capybearista/chronicler/1.0.0/avatar.webp',
+      'v3/capybearista/chronicler/1.0.0/package.json',
+      'v3/capybearista/hunter/1.0.0/avatar.webp',
+      'v3/capybearista/hunter/1.0.0/package.json',
+      'v3/capybearista/proctor/1.0.0/avatar.webp',
+      'v3/capybearista/proctor/1.0.0/package.json',
     ]);
+  });
+
+  test('links each capybearista agent manifest to the publisher', async () => {
+    for (const agent of ['arbiter', 'chronicler', 'hunter', 'proctor']) {
+      const bundle = await readJson(
+        `packages/v3/capybearista/${agent}/1.0.0/package.json`,
+      );
+      const manifest = bundle.manifest as {
+        id: string;
+        author: { url: string };
+      };
+      expect(manifest.id).toBe(`capybearista/${agent}`);
+      expect(manifest.author.url).toBe('https://github.com/capyBearista');
+    }
   });
 
   test('contains only v3 generated artifacts and no retirements', async () => {
@@ -57,6 +79,14 @@ describe('published marketplace state', () => {
       'alvin/janitor/1.0.1.webp',
       'alvin/paladin/1.0.1.json',
       'alvin/paladin/1.0.1.webp',
+      'capybearista/arbiter/1.0.0.json',
+      'capybearista/arbiter/1.0.0.webp',
+      'capybearista/chronicler/1.0.0.json',
+      'capybearista/chronicler/1.0.0.webp',
+      'capybearista/hunter/1.0.0.json',
+      'capybearista/hunter/1.0.0.webp',
+      'capybearista/proctor/1.0.0.json',
+      'capybearista/proctor/1.0.0.webp',
     ]);
 
     const v1Index = await readJson('dist/v1/index.json');
@@ -65,11 +95,19 @@ describe('published marketplace state', () => {
     expect(v1Index.entries).toEqual([]);
     expect(v2Index.entries).toEqual([]);
     expect(v2Index.retirements).toEqual([]);
-    expect(v3Index.entries).toHaveLength(3);
+    expect(v3Index.entries).toHaveLength(7);
     expect(v3Index.retirements).toEqual([]);
     expect(
       (v3Index.entries as Array<{ id: string }>).map((entry) => entry.id),
-    ).toEqual(['alvin/documenter', 'alvin/janitor', 'alvin/paladin']);
+    ).toEqual([
+      'alvin/documenter',
+      'alvin/janitor',
+      'alvin/paladin',
+      'capybearista/arbiter',
+      'capybearista/chronicler',
+      'capybearista/hunter',
+      'capybearista/proctor',
+    ]);
   });
 
   test('contains exactly the published catalog entries in every output', async () => {
@@ -77,6 +115,10 @@ describe('published marketplace state', () => {
       { id: 'alvin/documenter', state: 'active' },
       { id: 'alvin/janitor', state: 'active' },
       { id: 'alvin/paladin', state: 'active' },
+      { id: 'capybearista/arbiter', state: 'active' },
+      { id: 'capybearista/chronicler', state: 'active' },
+      { id: 'capybearista/hunter', state: 'active' },
+      { id: 'capybearista/proctor', state: 'active' },
     ];
     for (const path of ['catalog.json', 'dist/v2/catalog.json', 'dist/v3/catalog.json']) {
       expect((await readJson(path)).agents).toEqual(expected);
