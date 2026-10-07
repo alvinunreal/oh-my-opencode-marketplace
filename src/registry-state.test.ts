@@ -44,11 +44,29 @@ describe('published marketplace state', () => {
       'v3/alvin/janitor/1.0.1/package.json',
       'v3/alvin/paladin/1.0.1/avatar.webp',
       'v3/alvin/paladin/1.0.1/package.json',
+      'v3/capybearista/arbiter/1.0.0/avatar.webp',
       'v3/capybearista/arbiter/1.0.0/package.json',
+      'v3/capybearista/chronicler/1.0.0/avatar.webp',
       'v3/capybearista/chronicler/1.0.0/package.json',
+      'v3/capybearista/hunter/1.0.0/avatar.webp',
       'v3/capybearista/hunter/1.0.0/package.json',
+      'v3/capybearista/proctor/1.0.0/avatar.webp',
       'v3/capybearista/proctor/1.0.0/package.json',
     ]);
+  });
+
+  test('links each capybearista agent manifest to the publisher', async () => {
+    for (const agent of ['arbiter', 'chronicler', 'hunter', 'proctor']) {
+      const bundle = await readJson(
+        `packages/v3/capybearista/${agent}/1.0.0/package.json`,
+      );
+      const manifest = bundle.manifest as {
+        id: string;
+        author: { url: string };
+      };
+      expect(manifest.id).toBe(`capybearista/${agent}`);
+      expect(manifest.author.url).toBe('https://github.com/capyBearista');
+    }
   });
 
   test('contains only v3 generated artifacts and no retirements', async () => {
@@ -62,9 +80,13 @@ describe('published marketplace state', () => {
       'alvin/paladin/1.0.1.json',
       'alvin/paladin/1.0.1.webp',
       'capybearista/arbiter/1.0.0.json',
+      'capybearista/arbiter/1.0.0.webp',
       'capybearista/chronicler/1.0.0.json',
+      'capybearista/chronicler/1.0.0.webp',
       'capybearista/hunter/1.0.0.json',
+      'capybearista/hunter/1.0.0.webp',
       'capybearista/proctor/1.0.0.json',
+      'capybearista/proctor/1.0.0.webp',
     ]);
 
     const v1Index = await readJson('dist/v1/index.json');
