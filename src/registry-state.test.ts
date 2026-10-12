@@ -50,6 +50,8 @@ describe('published marketplace state', () => {
       'v3/capybearista/arbiter/1.1.0/package.json',
       'v3/capybearista/chronicler/1.0.0/avatar.webp',
       'v3/capybearista/chronicler/1.0.0/package.json',
+      'v3/capybearista/chronicler/1.1.0/avatar.webp',
+      'v3/capybearista/chronicler/1.1.0/package.json',
       'v3/capybearista/hunter/1.0.0/avatar.webp',
       'v3/capybearista/hunter/1.0.0/package.json',
       'v3/capybearista/hunter/1.1.0/avatar.webp',
@@ -75,15 +77,38 @@ describe('published marketplace state', () => {
     }
   });
 
-
-  test('keeps attribution outside new agent prompts', async () => {
-    for (const agent of ['arbiter', 'hunter', 'proctor']) {
-      const bundle = await readJson(`packages/v3/capybearista/${agent}/1.1.0/package.json`);
+  test('uses role-first prompts without embedded attribution or agent branding', async () => {
+    for (const agent of ['arbiter', 'chronicler', 'hunter', 'proctor']) {
+      const bundle = await readJson(
+        `packages/v3/capybearista/${agent}/1.1.0/package.json`,
+      );
       const manifest = bundle.manifest as { version: string; prompt: string };
       expect(manifest.version).toBe('1.1.0');
+      expect(manifest.prompt.startsWith('# ')).toBe(true);
+      expect(manifest.prompt).not.toMatch(/\b(?:Arbiter|Hunter|Proctor|Chronicler)\b/);
       expect(manifest.prompt).not.toContain('## Upstream attribution and license');
       expect(manifest.prompt).not.toContain('Copyright (c) 2025-2026 Cole Medin');
     }
+  });
+
+  test('preserves Chronicler metadata and restores structured documentation workflows', async () => {
+    const previous = (
+      await readJson('packages/v3/capybearista/chronicler/1.0.0/package.json')
+    ).manifest as Record<string, unknown>;
+    const current = (
+      await readJson('packages/v3/capybearista/chronicler/1.1.0/package.json')
+    ).manifest as Record<string, unknown>;
+    expect({ ...current, version: previous.version, prompt: previous.prompt }).toEqual(
+      previous,
+    );
+    const prompt = current.prompt as string;
+    expect(prompt).toContain('<documentation-handoff kind="information-gap">');
+    expect(prompt).toContain('kind="input-gap"');
+    expect(prompt).toContain('<summary>');
+    expect(prompt).toContain('<changes>');
+    expect(prompt).toContain('<verification>');
+    expect(prompt).toContain('Perform an Internal Writing-Quality Review');
+    expect(current.skills).toEqual([]);
   });
 
   test('contains only v3 generated artifacts and no retirements', async () => {
@@ -102,6 +127,8 @@ describe('published marketplace state', () => {
       'capybearista/arbiter/1.1.0.webp',
       'capybearista/chronicler/1.0.0.json',
       'capybearista/chronicler/1.0.0.webp',
+      'capybearista/chronicler/1.1.0.json',
+      'capybearista/chronicler/1.1.0.webp',
       'capybearista/hunter/1.0.0.json',
       'capybearista/hunter/1.0.0.webp',
       'capybearista/hunter/1.1.0.json',
@@ -118,7 +145,7 @@ describe('published marketplace state', () => {
     expect(v1Index.entries).toEqual([]);
     expect(v2Index.entries).toEqual([]);
     expect(v2Index.retirements).toEqual([]);
-    expect(v3Index.entries).toHaveLength(10);
+    expect(v3Index.entries).toHaveLength(11);
     expect(v3Index.retirements).toEqual([]);
     expect(
       (v3Index.entries as Array<{ id: string }>).map((entry) => entry.id),
@@ -128,6 +155,7 @@ describe('published marketplace state', () => {
       'alvin/paladin',
       'capybearista/arbiter',
       'capybearista/arbiter',
+      'capybearista/chronicler',
       'capybearista/chronicler',
       'capybearista/hunter',
       'capybearista/hunter',
