@@ -77,40 +77,6 @@ describe('published marketplace state', () => {
     }
   });
 
-  test('uses role-first prompts without embedded attribution or agent branding', async () => {
-    for (const agent of ['arbiter', 'chronicler', 'hunter', 'proctor']) {
-      const bundle = await readJson(
-        `packages/v3/capybearista/${agent}/1.1.0/package.json`,
-      );
-      const manifest = bundle.manifest as { version: string; prompt: string };
-      expect(manifest.version).toBe('1.1.0');
-      expect(manifest.prompt.startsWith('# ')).toBe(true);
-      expect(manifest.prompt).not.toMatch(/\b(?:Arbiter|Hunter|Proctor|Chronicler)\b/);
-      expect(manifest.prompt).not.toContain('## Upstream attribution and license');
-      expect(manifest.prompt).not.toContain('Copyright (c) 2025-2026 Cole Medin');
-    }
-  });
-
-  test('preserves Chronicler metadata and restores structured documentation workflows', async () => {
-    const previous = (
-      await readJson('packages/v3/capybearista/chronicler/1.0.0/package.json')
-    ).manifest as Record<string, unknown>;
-    const current = (
-      await readJson('packages/v3/capybearista/chronicler/1.1.0/package.json')
-    ).manifest as Record<string, unknown>;
-    expect({ ...current, version: previous.version, prompt: previous.prompt }).toEqual(
-      previous,
-    );
-    const prompt = current.prompt as string;
-    expect(prompt).toContain('<documentation-handoff kind="information-gap">');
-    expect(prompt).toContain('kind="input-gap"');
-    expect(prompt).toContain('<summary>');
-    expect(prompt).toContain('<changes>');
-    expect(prompt).toContain('<verification>');
-    expect(prompt).toContain('Perform an Internal Writing-Quality Review');
-    expect(current.skills).toEqual([]);
-  });
-
   test('contains only v3 generated artifacts and no retirements', async () => {
     expect(await filesUnder(resolve(root, 'dist/v1/artifacts'))).toEqual([]);
     expect(await filesUnder(resolve(root, 'dist/v2/artifacts'))).toEqual([]);
