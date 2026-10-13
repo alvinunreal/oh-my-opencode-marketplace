@@ -46,12 +46,20 @@ describe('published marketplace state', () => {
       'v3/alvin/paladin/1.0.1/package.json',
       'v3/capybearista/arbiter/1.0.0/avatar.webp',
       'v3/capybearista/arbiter/1.0.0/package.json',
+      'v3/capybearista/arbiter/1.1.0/avatar.webp',
+      'v3/capybearista/arbiter/1.1.0/package.json',
       'v3/capybearista/chronicler/1.0.0/avatar.webp',
       'v3/capybearista/chronicler/1.0.0/package.json',
+      'v3/capybearista/chronicler/1.1.0/avatar.webp',
+      'v3/capybearista/chronicler/1.1.0/package.json',
       'v3/capybearista/hunter/1.0.0/avatar.webp',
       'v3/capybearista/hunter/1.0.0/package.json',
+      'v3/capybearista/hunter/1.1.0/avatar.webp',
+      'v3/capybearista/hunter/1.1.0/package.json',
       'v3/capybearista/proctor/1.0.0/avatar.webp',
       'v3/capybearista/proctor/1.0.0/package.json',
+      'v3/capybearista/proctor/1.1.0/avatar.webp',
+      'v3/capybearista/proctor/1.1.0/package.json',
     ]);
   });
 
@@ -81,12 +89,20 @@ describe('published marketplace state', () => {
       'alvin/paladin/1.0.1.webp',
       'capybearista/arbiter/1.0.0.json',
       'capybearista/arbiter/1.0.0.webp',
+      'capybearista/arbiter/1.1.0.json',
+      'capybearista/arbiter/1.1.0.webp',
       'capybearista/chronicler/1.0.0.json',
       'capybearista/chronicler/1.0.0.webp',
+      'capybearista/chronicler/1.1.0.json',
+      'capybearista/chronicler/1.1.0.webp',
       'capybearista/hunter/1.0.0.json',
       'capybearista/hunter/1.0.0.webp',
+      'capybearista/hunter/1.1.0.json',
+      'capybearista/hunter/1.1.0.webp',
       'capybearista/proctor/1.0.0.json',
       'capybearista/proctor/1.0.0.webp',
+      'capybearista/proctor/1.1.0.json',
+      'capybearista/proctor/1.1.0.webp',
     ]);
 
     const v1Index = await readJson('dist/v1/index.json');
@@ -95,7 +111,7 @@ describe('published marketplace state', () => {
     expect(v1Index.entries).toEqual([]);
     expect(v2Index.entries).toEqual([]);
     expect(v2Index.retirements).toEqual([]);
-    expect(v3Index.entries).toHaveLength(7);
+    expect(v3Index.entries).toHaveLength(11);
     expect(v3Index.retirements).toEqual([]);
     expect(
       (v3Index.entries as Array<{ id: string }>).map((entry) => entry.id),
@@ -104,8 +120,12 @@ describe('published marketplace state', () => {
       'alvin/janitor',
       'alvin/paladin',
       'capybearista/arbiter',
+      'capybearista/arbiter',
+      'capybearista/chronicler',
       'capybearista/chronicler',
       'capybearista/hunter',
+      'capybearista/hunter',
+      'capybearista/proctor',
       'capybearista/proctor',
     ]);
   });

@@ -19,6 +19,8 @@ schema version is `2`, registry schema version is `3`, and digest domain is
 and digest domain is `marketplace-agent-bundle-v3`; v3 has its own index and
 artifact tree.
 
+Source attribution and license notices for adapted third-party agent prompts are recorded in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
 ## Contributing a package
 
 Add one canonical source bundle at the versioned source root:
