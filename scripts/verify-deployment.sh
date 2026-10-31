@@ -64,7 +64,7 @@ for version in "${VERSIONS[@]}"; do
     'cache-control: public, max-age=60, s-maxage=60, must-revalidate' \
     "$index_headers"
 
-  jq -er '.entries[] | .artifactPath | strings' -- "$ROOT_DIR/dist/$version/index.json" \
+  jq -r '.entries[] | .artifactPath | strings' -- "$ROOT_DIR/dist/$version/index.json" \
     > "$artifact_list"
 
   while IFS= read -r artifact; do
