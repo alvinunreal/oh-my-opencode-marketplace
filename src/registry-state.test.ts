@@ -45,6 +45,8 @@ describe('published marketplace state', () => {
       'v3/alvin/paladin/1.0.1/avatar.webp',
       'v3/alvin/paladin/1.0.1/package.json',
       'v3/alvin/validator/1.0.0/package.json',
+      'v3/alvin/validator/1.0.1/avatar.webp',
+      'v3/alvin/validator/1.0.1/package.json',
       'v3/capybearista/arbiter/1.0.0/avatar.webp',
       'v3/capybearista/arbiter/1.0.0/package.json',
       'v3/capybearista/arbiter/1.1.0/avatar.webp',
@@ -89,6 +91,8 @@ describe('published marketplace state', () => {
       'alvin/paladin/1.0.1.json',
       'alvin/paladin/1.0.1.webp',
       'alvin/validator/1.0.0.json',
+      'alvin/validator/1.0.1.json',
+      'alvin/validator/1.0.1.webp',
       'capybearista/arbiter/1.0.0.json',
       'capybearista/arbiter/1.0.0.webp',
       'capybearista/arbiter/1.1.0.json',
@@ -113,7 +117,7 @@ describe('published marketplace state', () => {
     expect(v1Index.entries).toEqual([]);
     expect(v2Index.entries).toEqual([]);
     expect(v2Index.retirements).toEqual([]);
-    expect(v3Index.entries).toHaveLength(12);
+    expect(v3Index.entries).toHaveLength(13);
     expect(v3Index.retirements).toEqual([]);
     expect(
       (v3Index.entries as Array<{ id: string }>).map((entry) => entry.id),
@@ -121,6 +125,7 @@ describe('published marketplace state', () => {
       'alvin/documenter',
       'alvin/janitor',
       'alvin/paladin',
+      'alvin/validator',
       'alvin/validator',
       'capybearista/arbiter',
       'capybearista/arbiter',

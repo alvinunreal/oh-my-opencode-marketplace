@@ -100,7 +100,7 @@ bunx oh-my-opencode-slim@3.0.0-beta.12 marketplace install alvin/paladin@1.0.1
 
 ## Validator
 
-`alvin/validator@1.0.0` runs established test, lint, typecheck, and build commands.
+`alvin/validator@1.0.1` runs established test, lint, typecheck, and build commands.
 It captures full logs on disk and returns concise command/exit-status evidence,
 failure excerpts, and blockers. It does not edit code or tests. Proctor remains
 the separate test-sufficiency reviewer.
