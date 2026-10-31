@@ -38,6 +38,8 @@ async function readJson(relativePath: string): Promise<Record<string, unknown>> 
 describe('published marketplace state', () => {
   test('contains only the published v3 source bundles', async () => {
     expect(await filesUnder(resolve(root, 'packages'))).toEqual([
+      'v3/alvin/debugger/1.0.0/avatar.webp',
+      'v3/alvin/debugger/1.0.0/package.json',
       'v3/alvin/documenter/1.0.0/avatar.webp',
       'v3/alvin/documenter/1.0.0/package.json',
       'v3/alvin/janitor/1.0.1/avatar.webp',
@@ -84,6 +86,8 @@ describe('published marketplace state', () => {
     expect(await filesUnder(resolve(root, 'dist/v1/artifacts'))).toEqual([]);
     expect(await filesUnder(resolve(root, 'dist/v2/artifacts'))).toEqual([]);
     expect(await filesUnder(resolve(root, 'dist/v3/artifacts'))).toEqual([
+      'alvin/debugger/1.0.0.json',
+      'alvin/debugger/1.0.0.webp',
       'alvin/documenter/1.0.0.json',
       'alvin/documenter/1.0.0.webp',
       'alvin/janitor/1.0.1.json',
@@ -117,11 +121,12 @@ describe('published marketplace state', () => {
     expect(v1Index.entries).toEqual([]);
     expect(v2Index.entries).toEqual([]);
     expect(v2Index.retirements).toEqual([]);
-    expect(v3Index.entries).toHaveLength(13);
+    expect(v3Index.entries).toHaveLength(14);
     expect(v3Index.retirements).toEqual([]);
     expect(
       (v3Index.entries as Array<{ id: string }>).map((entry) => entry.id),
     ).toEqual([
+      'alvin/debugger',
       'alvin/documenter',
       'alvin/janitor',
       'alvin/paladin',
@@ -140,6 +145,7 @@ describe('published marketplace state', () => {
 
   test('contains exactly the published catalog entries in every output', async () => {
     const expected = [
+      { id: 'alvin/debugger', state: 'active' },
       { id: 'alvin/documenter', state: 'active' },
       { id: 'alvin/janitor', state: 'active' },
       { id: 'alvin/paladin', state: 'active' },

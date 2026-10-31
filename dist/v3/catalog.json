@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "agents": [
     {
+      "id": "alvin/debugger",
+      "state": "active"
+    },
+    {
       "id": "alvin/documenter",
       "state": "active"
     },

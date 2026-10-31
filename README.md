@@ -109,6 +109,47 @@ Validator inherits the session model; configure `agents.validator.model` in the
 plugin to select an available cheap hosted or local model. Delegate noisy or
 long-running checks after writers finish; keep trivial checks with their owner.
 
+## Debugger
+
+`alvin/debugger@1.0.0` investigates a live process, waits for a supported trigger,
+and captures relevant stack frames and values before following the agreed
+pause/resume policy. Launch it as a background task for blocking waits. It
+reports target state, cleanup, unsupported capabilities, and evidence artifacts;
+it does not repair application code or install a debugger server.
+
+Install and enable it in a configured plugin preset, then restart OpenCode:
+
+```sh
+bunx oh-my-opencode-slim@latest marketplace install alvin/debugger@1.0.0
+bunx oh-my-opencode-slim@latest marketplace enable alvin/debugger
+```
+
+A debugger backend is required. The package grants `read`, `glob`, `grep`, and
+`bash`, with no default MCP dependency: an established debugger CLI can be used
+through the shell. To use an existing OpenCode debugger MCP, explicitly select
+its configured server name in the plugin configuration (the example assumes
+your server is named `debugger`):
+
+```json
+{
+  "agents": {
+    "debugger": {
+      "mcps": ["debugger"]
+    }
+  }
+}
+```
+
+This selects an already configured MCP; it does not provision one. Backend
+support determines conditional breakpoints, bounded event waits, cancellation,
+and frame inspection. Unsupported requirements return `BLOCKED`. Provide the
+target, breakpoint/condition, deadline, requested evidence, and pause/resume
+policy when delegating. MCP-specific tool names are discovered from the backend.
+
+The model inherits the session by default; use `agents.debugger.model` to choose
+another configured model. Validator runs checks; Debugger collects live runtime
+evidence; implementation agents own repairs.
+
 ## Local verification
 
 The repository pins Bun `1.3.14`, TypeScript `7.0.2`, and Wrangler `4.131.1`
