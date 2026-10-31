@@ -98,6 +98,17 @@ bunx oh-my-opencode-slim@3.0.0-beta.12 marketplace install alvin/janitor@1.0.1
 bunx oh-my-opencode-slim@3.0.0-beta.12 marketplace install alvin/paladin@1.0.1
 ```
 
+## Validator
+
+`alvin/validator@1.0.0` runs established test, lint, typecheck, and build commands.
+It captures full logs on disk and returns concise command/exit-status evidence,
+failure excerpts, and blockers. It does not edit code or tests. Proctor remains
+the separate test-sufficiency reviewer.
+
+Validator inherits the session model; configure `agents.validator.model` in the
+plugin to select an available cheap hosted or local model. Delegate noisy or
+long-running checks after writers finish; keep trivial checks with their owner.
+
 ## Local verification
 
 The repository pins Bun `1.3.14`, TypeScript `7.0.2`, and Wrangler `4.131.1`
