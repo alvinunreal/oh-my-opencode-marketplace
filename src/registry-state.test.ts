@@ -65,6 +65,8 @@ describe('published marketplace state', () => {
       'v3/capybearista/proctor/1.0.0/package.json',
       'v3/capybearista/proctor/1.1.0/avatar.webp',
       'v3/capybearista/proctor/1.1.0/package.json',
+      'v3/mhenke/archon/1.0.0/package.json',
+      'v3/mhenke/skeptic/1.0.0/package.json',
     ]);
   });
 
@@ -113,6 +115,8 @@ describe('published marketplace state', () => {
       'capybearista/proctor/1.0.0.webp',
       'capybearista/proctor/1.1.0.json',
       'capybearista/proctor/1.1.0.webp',
+      'mhenke/archon/1.0.0.json',
+      'mhenke/skeptic/1.0.0.json',
     ]);
 
     const v1Index = await readJson('dist/v1/index.json');
@@ -121,7 +125,7 @@ describe('published marketplace state', () => {
     expect(v1Index.entries).toEqual([]);
     expect(v2Index.entries).toEqual([]);
     expect(v2Index.retirements).toEqual([]);
-    expect(v3Index.entries).toHaveLength(14);
+    expect(v3Index.entries).toHaveLength(16);
     expect(v3Index.retirements).toEqual([]);
     expect(
       (v3Index.entries as Array<{ id: string }>).map((entry) => entry.id),
@@ -140,6 +144,8 @@ describe('published marketplace state', () => {
       'capybearista/hunter',
       'capybearista/proctor',
       'capybearista/proctor',
+      'mhenke/archon',
+      'mhenke/skeptic',
     ]);
   });
 
@@ -154,6 +160,8 @@ describe('published marketplace state', () => {
       { id: 'capybearista/chronicler', state: 'active' },
       { id: 'capybearista/hunter', state: 'active' },
       { id: 'capybearista/proctor', state: 'active' },
+      { id: 'mhenke/archon', state: 'active' },
+      { id: 'mhenke/skeptic', state: 'active' },
     ];
     for (const path of ['catalog.json', 'dist/v2/catalog.json', 'dist/v3/catalog.json']) {
       expect((await readJson(path)).agents).toEqual(expected);
