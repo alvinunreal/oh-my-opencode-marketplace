@@ -36,6 +36,14 @@
     {
       "id": "capybearista/proctor",
       "state": "active"
+    },
+    {
+      "id": "mhenke/archon",
+      "state": "active"
+    },
+    {
+      "id": "mhenke/skeptic",
+      "state": "active"
     }
   ]
 }

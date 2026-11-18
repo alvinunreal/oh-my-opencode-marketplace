@@ -150,6 +150,21 @@ The model inherits the session by default; use `agents.debugger.model` to choose
 another configured model. Validator runs checks; Debugger collects live runtime
 evidence; implementation agents own repairs.
 
+## Skeptic and Archon
+
+`mhenke/skeptic@1.0.0` stress-tests proposals before implementation, examining
+failure scenarios, effort estimates, and conditions for success. Use Arbiter
+for reviewing completed code.
+
+`mhenke/archon@1.0.0` resolves technical decisions left unsettled after specialist
+attempts. Provide those attempts, their evidence, and the remaining decision.
+Routine reviews and initial troubleshooting stay with the ordinary specialists.
+
+Both packages inherit the session model and include no skills or MCP dependencies.
+For Archon, explicitly configure a frontier/premium reasoning model with a
+suitable reasoning budget. Its prompt and routing do not select a stronger model;
+without an override, it uses the session model even when invoked as an escalation.
+
 ## Local verification
 
 The repository pins Bun `1.3.14`, TypeScript `7.0.2`, and Wrangler `4.131.1`
