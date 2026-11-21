@@ -201,14 +201,21 @@ to its assets. Versioned artifact paths receive
 `max-age=31536000, immutable`; both catalogs and other registry output receive
 short-lived, revalidated caching (`max-age=60`).
 
-Deployment is deliberately manual through the `workflow_dispatch` deploy
-workflow and requires the GitHub environment's Cloudflare secrets. Main and
-deploy jobs share a cancel-in-progress production concurrency group, the
-deploy job refreshes and verifies `origin/main` immediately before deployment,
-and the post-deploy smoke check verifies the live catalog and cache headers.
-The deploy operation consumes the complete `dist/` tree in one Wrangler
-deployment. The smoke script uses a unique cache-busting query without
-following redirects, requires HTTP 200, byte-compares both indexes and every
-referenced artifact with local output, and checks both cache policies.
+Publish manually from a current `main` checkout after completing the local
+verification above. Set `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in
+the shell environment, or use an authenticated Wrangler login. GitHub Actions
+builds and verifies the registry; it does not deploy it.
+
+```sh
+bun run deploy
+DEPLOY_SMOKE_CACHE_BUST="$(git rev-parse HEAD)-$(date -u +%Y%m%dT%H%M%SZ)" \
+  bash scripts/verify-deployment.sh
+```
+
+`deploy` refreshes and verifies `origin/main` immediately before uploading the
+complete `dist/` tree in one Wrangler deployment. Generated output must be
+committed. The smoke script uses a unique cache-busting query without following
+redirects, requires HTTP 200, byte-compares all three indexes and every referenced
+artifact with local output, and checks both cache policies.
 `bun run validate-deploy` checks Wrangler configuration without deploying. No
 Cloudflare credentials are stored in this repository.
