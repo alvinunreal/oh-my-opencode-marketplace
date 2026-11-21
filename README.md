@@ -206,6 +206,10 @@ verification above. Set `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in
 the shell environment, or use an authenticated Wrangler login. GitHub Actions
 builds and verifies the registry; it does not deploy it.
 
+For Global API Key authentication, map the existing `CLOUDFLARE_GLOBAL` value
+to Wrangler's `CLOUDFLARE_API_KEY` environment variable and set
+`CLOUDFLARE_EMAIL` to the account email.
+
 ```sh
 bun run deploy
 DEPLOY_SMOKE_CACHE_BUST="$(git rev-parse HEAD)-$(date -u +%Y%m%dT%H%M%SZ)" \
@@ -217,5 +221,12 @@ complete `dist/` tree in one Wrangler deployment. Generated output must be
 committed. The smoke script uses a unique cache-busting query without following
 redirects, requires HTTP 200, byte-compares all three indexes and every referenced
 artifact with local output, and checks both cache policies.
+
+The public [marketplace page](https://ohmyopencodeslim.com/marketplace) uses a
+generated snapshot in the separate
+[website repository](https://github.com/alvinunreal/com.ohmyopencodeslim).
+After publishing the registry, run `bun run deploy` in that checkout to refresh
+the snapshot and publish the updated agent listings.
+
 `bun run validate-deploy` checks Wrangler configuration without deploying. No
 Cloudflare credentials are stored in this repository.
