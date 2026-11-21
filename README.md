@@ -150,18 +150,20 @@ The model inherits the session by default; use `agents.debugger.model` to choose
 another configured model. Validator runs checks; Debugger collects live runtime
 evidence; implementation agents own repairs.
 
-## Skeptic and Archon
+## Skeptic and Principal
 
 `mhenke/skeptic@1.0.0` stress-tests proposals before implementation, examining
 failure scenarios, effort estimates, and conditions for success. Use Arbiter
 for reviewing completed code.
 
-`mhenke/archon@1.0.0` resolves technical decisions left unsettled after specialist
-attempts. Provide those attempts, their evidence, and the remaining decision.
-Routine reviews and initial troubleshooting stay with the ordinary specialists.
+`mhenke/principal@1.0.0` is the last-resort technical authority for one decision
+cheaper specialists could not settle. Provide the prior attempts, their evidence,
+and the remaining decision; it commits to a recommendation and hands control back
+to the orchestrator. Ordinary technical advice belongs to Oracle, merge review to
+Arbiter, and initial troubleshooting to the ordinary specialists.
 
 Both packages inherit the session model and include no skills or MCP dependencies.
-For Archon, explicitly configure a frontier/premium reasoning model with a
+For Principal, explicitly configure a frontier/premium reasoning model with a
 suitable reasoning budget. Its prompt and routing do not select a stronger model;
 without an override, it uses the session model even when invoked as an escalation.
 

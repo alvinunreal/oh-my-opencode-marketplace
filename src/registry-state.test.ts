@@ -65,7 +65,7 @@ describe('published marketplace state', () => {
       'v3/capybearista/proctor/1.0.0/package.json',
       'v3/capybearista/proctor/1.1.0/avatar.webp',
       'v3/capybearista/proctor/1.1.0/package.json',
-      'v3/mhenke/archon/1.0.0/package.json',
+      'v3/mhenke/principal/1.0.0/package.json',
       'v3/mhenke/skeptic/1.0.0/package.json',
     ]);
   });
@@ -82,6 +82,26 @@ describe('published marketplace state', () => {
       expect(manifest.id).toBe(`capybearista/${agent}`);
       expect(manifest.author.url).toBe('https://github.com/capyBearista');
     }
+  });
+
+  test('publishes Principal with its identity, prompt, and prior-attempt boundary', async () => {
+    const bundle = await readJson('packages/v3/mhenke/principal/1.0.0/package.json');
+    const manifest = bundle.manifest as {
+      id: string;
+      displayName: string;
+      agentName: string;
+      prompt: string;
+      routing: { delegateWhen: string[]; avoid: string[] };
+    };
+    expect(manifest.id).toBe('mhenke/principal');
+    expect(manifest.displayName).toBe('Principal');
+    expect(manifest.agentName).toBe('principal');
+    expect(manifest.prompt.startsWith('You are Principal')).toBe(true);
+    expect(manifest.routing.delegateWhen).toHaveLength(3);
+    expect(manifest.routing.delegateWhen[0]).toContain('unresolved');
+    expect(manifest.routing.avoid).toContain(
+      'A decision with no evidence of prior specialist attempts; use the ordinary specialist first.',
+    );
   });
 
   test('contains only v3 generated artifacts and no retirements', async () => {
@@ -115,7 +135,7 @@ describe('published marketplace state', () => {
       'capybearista/proctor/1.0.0.webp',
       'capybearista/proctor/1.1.0.json',
       'capybearista/proctor/1.1.0.webp',
-      'mhenke/archon/1.0.0.json',
+      'mhenke/principal/1.0.0.json',
       'mhenke/skeptic/1.0.0.json',
     ]);
 
@@ -144,7 +164,7 @@ describe('published marketplace state', () => {
       'capybearista/hunter',
       'capybearista/proctor',
       'capybearista/proctor',
-      'mhenke/archon',
+      'mhenke/principal',
       'mhenke/skeptic',
     ]);
   });
@@ -160,7 +180,7 @@ describe('published marketplace state', () => {
       { id: 'capybearista/chronicler', state: 'active' },
       { id: 'capybearista/hunter', state: 'active' },
       { id: 'capybearista/proctor', state: 'active' },
-      { id: 'mhenke/archon', state: 'active' },
+      { id: 'mhenke/principal', state: 'active' },
       { id: 'mhenke/skeptic', state: 'active' },
     ];
     for (const path of ['catalog.json', 'dist/v2/catalog.json', 'dist/v3/catalog.json']) {
