@@ -65,7 +65,9 @@ describe('published marketplace state', () => {
       'v3/capybearista/proctor/1.0.0/package.json',
       'v3/capybearista/proctor/1.1.0/avatar.webp',
       'v3/capybearista/proctor/1.1.0/package.json',
+      'v3/mhenke/principal/1.0.0/avatar.webp',
       'v3/mhenke/principal/1.0.0/package.json',
+      'v3/mhenke/skeptic/1.0.0/avatar.webp',
       'v3/mhenke/skeptic/1.0.0/package.json',
     ]);
   });
@@ -136,7 +138,9 @@ describe('published marketplace state', () => {
       'capybearista/proctor/1.1.0.json',
       'capybearista/proctor/1.1.0.webp',
       'mhenke/principal/1.0.0.json',
+      'mhenke/principal/1.0.0.webp',
       'mhenke/skeptic/1.0.0.json',
+      'mhenke/skeptic/1.0.0.webp',
     ]);
 
     const v1Index = await readJson('dist/v1/index.json');

@@ -162,6 +162,9 @@ and the remaining decision; it commits to a recommendation and hands control bac
 to the orchestrator. Ordinary technical advice belongs to Oracle, merge review to
 Arbiter, and initial troubleshooting to the ordinary specialists.
 
+Both packages ship with character artwork: an owl scholar for Skeptic and a
+celestial construct for Principal.
+
 Both packages inherit the session model and include no skills or MCP dependencies.
 For Principal, explicitly configure a frontier/premium reasoning model with a
 suitable reasoning budget. Its prompt and routing do not select a stronger model;
