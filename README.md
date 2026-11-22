@@ -109,6 +109,31 @@ Validator inherits the session model; configure `agents.validator.model` in the
 plugin to select an available cheap hosted or local model. Delegate noisy or
 long-running checks after writers finish; keep trivial checks with their owner.
 
+## Fast Generic
+
+`alvin/fast-generic@1.0.0`, by Alvin, executes bounded mechanical shell work,
+normal Git commits and pushes, and established validation commands. It returns
+command and exit-status evidence, commit hashes, and relevant log paths.
+Validator remains the specialist for long or noisy validation runs.
+
+Fast Generic is standalone and inherits the session model, with no pinned
+provider, model, or reasoning variant. Configure `agents.fast-generic.model`
+to choose an available fast model. It bundles no skills or MCPs and grants
+only `read`, `glob`, `grep`, and `bash`.
+
+Its prompt requires inspection before Git writes, intended-file staging,
+preservation of unrelated staged work, and an explicit user request for the
+exact destructive history operation. It does not edit code or repair failing
+checks. These are prompt policies; shell access is not a filesystem sandbox.
+
+```sh
+bunx oh-my-opencode-slim@latest marketplace install alvin/fast-generic@1.0.0
+bunx oh-my-opencode-slim@latest marketplace enable alvin/fast-generic
+```
+
+Restart OpenCode after enabling it. The package includes the approved courier
+artwork.
+
 ## Debugger
 
 `alvin/debugger@1.0.0` investigates a live process, waits for a supported trigger,

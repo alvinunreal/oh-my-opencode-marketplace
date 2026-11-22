@@ -42,6 +42,8 @@ describe('published marketplace state', () => {
       'v3/alvin/debugger/1.0.0/package.json',
       'v3/alvin/documenter/1.0.0/avatar.webp',
       'v3/alvin/documenter/1.0.0/package.json',
+      'v3/alvin/fast-generic/1.0.0/avatar.webp',
+      'v3/alvin/fast-generic/1.0.0/package.json',
       'v3/alvin/janitor/1.0.1/avatar.webp',
       'v3/alvin/janitor/1.0.1/package.json',
       'v3/alvin/paladin/1.0.1/avatar.webp',
@@ -114,6 +116,8 @@ describe('published marketplace state', () => {
       'alvin/debugger/1.0.0.webp',
       'alvin/documenter/1.0.0.json',
       'alvin/documenter/1.0.0.webp',
+      'alvin/fast-generic/1.0.0.json',
+      'alvin/fast-generic/1.0.0.webp',
       'alvin/janitor/1.0.1.json',
       'alvin/janitor/1.0.1.webp',
       'alvin/paladin/1.0.1.json',
@@ -149,13 +153,14 @@ describe('published marketplace state', () => {
     expect(v1Index.entries).toEqual([]);
     expect(v2Index.entries).toEqual([]);
     expect(v2Index.retirements).toEqual([]);
-    expect(v3Index.entries).toHaveLength(16);
+    expect(v3Index.entries).toHaveLength(17);
     expect(v3Index.retirements).toEqual([]);
     expect(
       (v3Index.entries as Array<{ id: string }>).map((entry) => entry.id),
     ).toEqual([
       'alvin/debugger',
       'alvin/documenter',
+      'alvin/fast-generic',
       'alvin/janitor',
       'alvin/paladin',
       'alvin/validator',
@@ -177,6 +182,7 @@ describe('published marketplace state', () => {
     const expected = [
       { id: 'alvin/debugger', state: 'active' },
       { id: 'alvin/documenter', state: 'active' },
+      { id: 'alvin/fast-generic', state: 'active' },
       { id: 'alvin/janitor', state: 'active' },
       { id: 'alvin/paladin', state: 'active' },
       { id: 'alvin/validator', state: 'active' },
